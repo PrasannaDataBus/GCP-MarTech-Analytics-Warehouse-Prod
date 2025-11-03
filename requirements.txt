@@ -1,0 +1,6 @@
+google-ads
+facebook-business
+google-cloud-bigquery
+pandas
+pyarrow
+python-dotenv
