@@ -1,14 +1,21 @@
 from google.ads.googleads.client import GoogleAdsClient
 from google.cloud import bigquery
-from datetime import datetime, timezone, date
+from datetime import datetime, timezone, date, timedelta
 import pandas as pd
 from dotenv import load_dotenv
 import os
 
-# Load environment variables from params.env
-load_dotenv(r"C:\Users\prasa\Root\GCP MarTech Analytics Warehouse\params.env")
+# --- Load environment file depending on runtime environment ---
+if os.path.exists("/opt/airflow/secrets/params.env"):
+    # Running inside Airflow Docker container
+    load_dotenv("/opt/airflow/secrets/params.env")
+    print(f"Running Inside Airflow Docker Container")
+else:
+    # Running locally (manual run)
+    load_dotenv(r"C:\Users\prasa\Root\GCP MarTech Analytics Warehouse\params.env")
+    print(f"Running Manual - Local")
 
-# Set Google credentials dynamically
+# --- Set Google credentials dynamically ---
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 
 PROJECT_ID = os.getenv("GCP_PROJECT_ID")
@@ -123,6 +130,9 @@ def extract_ads_data(customer_id: str, start_date: str, end_date: str):
 
     df = pd.DataFrame(rows)
     if not df.empty:
+        # Convert date safely
+        df["date"] = pd.to_datetime(df["date"], errors = "coerce").dt.date
+
         df = df.astype({
             "impressions": "int64",
             "clicks": "int64",
@@ -138,55 +148,130 @@ def extract_ads_data(customer_id: str, start_date: str, end_date: str):
     return df
 
 
-def load_to_bigquery(df: pd.DataFrame):
-    # Convert date column safely to datetime.date
-    if "date" in df.columns:
-        df["date"] = pd.to_datetime(df["date"], errors = "coerce").dt.date
-
+# --- FIND LAST LOADED DATE ---
+def get_last_loaded_date():
     table_id = f"{PROJECT_ID}.{RAW_DATASET_NAME}.{PERFORMANCE_TABLE_NAME}"
+    query = f"SELECT MAX(date) AS last_date FROM `{table_id}`"
+    result = list(bq_client.query(query))
+    last_date = result[0].last_date if result and result[0].last_date else None
+    return last_date
+
+
+# --- LOAD TO BIGQUERY (INCREMENTAL) ---
+def load_to_bigquery(df: pd.DataFrame, start_date: str, end_date: str, account_name: str, account_id: str):
+    table_id = f"{PROJECT_ID}.{RAW_DATASET_NAME}.{PERFORMANCE_TABLE_NAME}"
+
+    # Delete overlapping date range to ensure no duplicates
+    delete_query = f"""
+        DELETE FROM `{table_id}`
+        WHERE DATE(date) BETWEEN '{start_date}' AND '{end_date}'
+        AND account_id = '{account_id}'
+    """
+    bq_client.query(delete_query).result()
+    print(f"Deleted existing rows for {account_name} ({account_id}) between {start_date} and {end_date}")
+
     job_config = bigquery.LoadJobConfig(write_disposition="WRITE_APPEND")
-
-    # define schema explicitly to ensure BigQuery types match
-    job_config.schema = [
-        bigquery.SchemaField("date", "DATE"),
-    ]
-
     job = bq_client.load_table_from_dataframe(df, table_id, job_config=job_config)
     job.result()
-    print(f"Loaded {len(df)} rows into {table_id}")
+    print(f"Loaded {len(df)} rows for {account_name} ({account_id}) into {RAW_DATASET_NAME}.{PERFORMANCE_TABLE_NAME}")
 
 
-# --- MAIN EXECUTION ---
+# --- MAIN ---
 def main():
     manager_id = ads_client.login_customer_id or ads_client.client_customer_id
     child_accounts = get_child_accounts(manager_id)
-
     print(f"Found {len(child_accounts)} client accounts under manager {manager_id}")
+
+    last_loaded_date = get_last_loaded_date()
+    lookback_days = 14  # configurable window for late updates
+    if last_loaded_date:
+        start_date = (last_loaded_date - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
+    else:
+        start_date = "2022-01-01"  # fallback for first run
+
+    end_date = date.today().strftime("%Y-%m-%d")
+
+    print(f"Incremental load from {start_date} → {end_date}")
 
     for account in child_accounts:
         customer_id = str(account["id"])
         account_name = account["name"]
         print(f"\nExtracting for account: {account_name} ({customer_id})")
 
-        years = [2025]  # Start with one year test, expand later
-        for yr in years:
-            start_date = f"{yr}-01-01"
-            end_date = f"{yr}-12-31" if yr < date.today().year else str(date.today())
-
-            print(f"Extracting {start_date} → {end_date}")
-            try:
-                df = extract_ads_data(customer_id, start_date, end_date)
-
-                if df.empty:
-                    print(f"No data for {yr} in {account_name}")
-                    continue
-
-                print(f"Extracted {len(df)} rows for {yr} ({account_name})")
-                load_to_bigquery(df)
-
-            except Exception as e:
-                print(f"Failed for {account_name} ({customer_id}): {e}")
+        try:
+            df = extract_ads_data(customer_id, start_date, end_date)
+            if df.empty:
+                print(f"No new or updated data for {account_name}")
+                continue
+            print(f"Extracted {len(df)} rows for {account_name}")
+            load_to_bigquery(df, start_date, end_date, account_name, customer_id)
+        except Exception as e:
+            print(f"Failed for {account_name} ({customer_id}): {e}")
 
 
 if __name__ == "__main__":
     main()
+
+
+# Note: Do not uncomment the below without understanding that the below logic will
+# Append rows, it is important to provide the years = [] value. For Example: years = [2025]
+# When you provide the years values then the logic will filter out the raw data between {year}-01-01
+# and {year}-12-31. As i have already extracted and loaded the historical backfill data
+# so do not uncomment the below logic as you will overwrite the previously existing same records
+# which will result in duplicate rows and cost will be incurred.
+
+# --- LOAD TO BIGQUERY (HISTORICAL BACKFILL 2022 - 2025)
+
+
+# def load_to_bigquery(df: pd.DataFrame):
+#     # Convert date column safely to datetime.date
+#     if "date" in df.columns:
+#         df["date"] = pd.to_datetime(df["date"], errors = "coerce").dt.date
+#
+#     table_id = f"{PROJECT_ID}.{RAW_DATASET_NAME}.{PERFORMANCE_TABLE_NAME}"
+#     job_config = bigquery.LoadJobConfig(write_disposition="WRITE_APPEND")
+#
+#     # define schema explicitly to ensure BigQuery types match
+#     job_config.schema = [
+#         bigquery.SchemaField("date", "DATE"),
+#     ]
+#
+#     job = bq_client.load_table_from_dataframe(df, table_id, job_config=job_config)
+#     job.result()
+#     print(f"Loaded {len(df)} rows into {table_id}")
+
+
+# --- MAIN EXECUTION ---
+# def main():
+#     manager_id = ads_client.login_customer_id or ads_client.client_customer_id
+#     child_accounts = get_child_accounts(manager_id)
+#
+#     print(f"Found {len(child_accounts)} client accounts under manager {manager_id}")
+#
+#     for account in child_accounts:
+#         customer_id = str(account["id"])
+#         account_name = account["name"]
+#         print(f"\nExtracting for account: {account_name} ({customer_id})")
+#
+#         years = [2025]  # Start with one year test, expand later
+#         for yr in years:
+#             start_date = f"{yr}-01-01"
+#             end_date = f"{yr}-12-31" if yr < date.today().year else str(date.today())
+#
+#             print(f"Extracting {start_date} → {end_date}")
+#             try:
+#                 df = extract_ads_data(customer_id, start_date, end_date)
+#
+#                 if df.empty:
+#                     print(f"No data for {yr} in {account_name}")
+#                     continue
+#
+#                 print(f"Extracted {len(df)} rows for {yr} ({account_name})")
+#                 load_to_bigquery(df)
+#
+#             except Exception as e:
+#                 print(f"Failed for {account_name} ({customer_id}): {e}")
+#
+#
+# if __name__ == "__main__":
+#     main()
