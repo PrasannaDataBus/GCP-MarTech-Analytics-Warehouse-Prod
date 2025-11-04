@@ -1,0 +1,388 @@
+# Estimate and control costs
+This page describes best practices for estimating and controlling costs in BigQuery.
+
+- The primary costs in BigQuery are compute, used for query processing, and storage, for data that is stored in BigQuery.
+- BigQuery offers two types of pricing models for query processing, on-demand and capacity-based pricing.
+- Each model offers different best practices for cost control.
+- For data stored in BigQuery, costs depend on the storage billing model configured for each dataset.
+
+## Understand compute pricing for BigQuery
+- There are subtle differences in compute pricing for BigQuery that affect capacity planning and cost control.
+
+## Pricing models
+- For on-demand compute in BigQuery, you incur charges per TiB for BigQuery queries.
+
+- Alternatively, for capacity compute in BigQuery, you incur charges for the compute resources (slots) that are used to process the query.
+- To use this model, you configure reservations for slots.
+
+### Reservations have the following features:
+
+- They are allocated in pools of slots, and they let you manage capacity and isolate workloads in ways that make sense for your organization.
+- They must reside in one administration project and are subject to quotas and limits.
+- The capacity pricing model offers several editions, which all offer a pay-as-you-go option that's charged in slot hours.
+- Enterprise and Enterprise Plus editions also provide optional one- or three-year slot commitments that can save money over the pay-as-you-go rate.
+
+You can also set autoscaling reservations using the pay-as-you-go option. For more information, see the following:
+
+- To compare pricing models, see Choosing a model.
+- For pricing details, see On-demand compute pricing and Capacity compute pricing.
+
+## Restrict costs for each model
+
+- When you use the on-demand pricing model, the only way to restrict costs is to configure project-level or user-level daily quotas.
+- However, these quotas enforce a hard cap that prevents users from running queries beyond the quota limit.
+- To set quotas, see Create custom query quotas.
+
+- When you use the capacity pricing model using slot reservations, you specify the maximum number of slots that are available to a reservation.
+- You can also purchase slot commitments that provide discounted prices for a committed period of time.
+
+- You can use editions fully on demand by setting the baseline of the reservation to 0 and the maximum to a setting that meets your workload needs.
+- BigQuery automatically scales up to the number of slots needed for your workload, never exceeding the maximum that you set.
+- For more information, see Workload management using reservations.
+
+## Control query costs
+
+- To control the costs of individual queries, we recommend that you first follow best practices for optimizing query computation and optimizing storage.
+- The following sections outline additional best practices that you can use to further control your query costs.
+
+## Create custom query quotas
+
+Best practice: Use custom daily query quotas to limit the amount of data processed per day.
+
+- You can manage costs by setting a custom quota that specifies a limit on the amount of data processed per day per project or per user.
+- Users are not able to run queries once the quota is reached.
+
+To set a custom quota, you need specific roles or permissions. For quotas to set, see Quotas and limits.
+For more information, see Restrict costs for each pricing model.
+
+## Check the estimated cost before running a query
+
+Best practice: Before running queries, preview them to estimate costs.
+
+When using the on-demand pricing model, queries are billed according to the number of bytes read. To estimate costs before running a query:
+
+- Use the query validator in the Google Cloud console.
+- Perform a dry run for queries.
+
+Note: The estimate of the number of bytes that is billed for a query is an upper bound, and can be higher than the actual number of bytes billed after running the query.
+
+Use the query validator: When you enter a query in the Google Cloud console, the query validator verifies the query syntax and provides an estimate of the number of bytes read.
+You can use this estimate to calculate query cost in the pricing calculator.
+
+- If your query is not valid, then the query validator displays an error message. For example:
+
+Not found: Table myProject:myDataset.myTable was not found in location US
+
+- If your query is valid, then the query validator provides an estimate of the number of bytes required to process the query. For example:
+
+This query will process 623.1 KiB when run.
+
+""" Perform a dry run
+To perform a dry run, do the following:
+
+Console
+bq
+API
+Go
+Java
+Node.js
+PHP
+Python
+Go to the BigQuery page.
+
+Go to BigQuery"""
+
+Enter your query in the query editor.
+
+- If the query is valid, then a check mark automatically appears along with the amount of data that the query will process.
+- If the query is invalid, then an exclamation point appears along with an error message.
+
+## Estimate query costs
+When using the on-demand pricing model, you can estimate the cost of running a query by calculating the number of bytes processed.
+
+On-demand query size calculation: To calculate the number of bytes processed by the various types of queries, see the following sections:
+
+- DML statements
+- DDL statements
+- Clustered tables
+
+Note: The selected dataset storage billing model does not affect the on-demand query cost calculation. BigQuery always uses logical (uncompressed) bytes to calculate on-demand query costs.
+Note: If you are querying external table data is stored in ORC or Parquet, the number of bytes charged is limited to the columns that BigQuery reads. Because the data types from an external data source are converted to BigQuery data types by the query, the number of bytes read is computed based on the size of BigQuery data types.
+
+## Avoid running queries to explore table data
+
+Best practice: Don't run queries to explore or preview table data.
+
+- If you are experimenting with or exploring your data, you can use table preview options to view data at no charge and without affecting quotas.
+
+BigQuery supports the following data preview options:
+
+- In the Google Cloud console, on the table details page, click the Preview tab to sample the data.
+- In the bq command-line tool, use the bq head command and specify the number of rows to preview.
+- In the API, use tabledata.list to retrieve table data from a specified set of rows.
+- Avoid using LIMIT in non-clustered tables. For non-clustered tables, a LIMIT clause won't reduce compute costs.
+
+## Restrict the number of bytes billed per query
+
+Best practice: Use the maximum bytes billed setting to limit query costs when using the on-demand pricing model.
+
+- You can limit the number of bytes billed for a query using the maximum bytes billed setting.
+- When you set maximum bytes billed, the number of bytes that the query reads is estimated before the query execution.
+- If the number of estimated bytes is beyond the limit, then the query fails without incurring a charge.
+
+- For clustered tables, the estimation of the number of bytes billed for a query is an upper bound, and can be higher than the actual number of bytes billed after running the query.
+- So in some cases, if you set the maximum bytes billed, a query on a clustered table can fail, even though the actual bytes billed wouldn't exceed the maximum bytes billed setting.
+
+If a query fails because of the maximum bytes billed setting, an error similar to following is returned:
+
+Error: Query exceeded limit for bytes billed: 1000000. 10485760 or higher required.
+
+To set the maximum bytes billed:
+
+"""Console
+bq
+API"""
+
+- In the Query editor, click More > Query settings > Advanced options.
+- In the Maximum bytes billed field, enter an integer.
+- Click Save.
+
+## Avoid using LIMIT in non-clustered tables
+
+Best practice: For non-clustered tables, don't use a LIMIT clause as a method of cost control.
+
+- For non-clustered tables, applying a LIMIT clause to a query doesn't affect the amount of data that is read.
+- You are billed for reading all bytes in the entire table as indicated by the query, even though the query returns only a subset.
+- With a clustered table, a LIMIT clause can reduce the number of bytes scanned, because scanning stops when enough blocks are scanned to get the result.
+- You are billed for only the bytes that are scanned.
+
+## Materialize query results in stages
+
+Best practice: If possible, materialize your query results in stages.
+
+- If you create a large, multi-stage query, each time you run it, BigQuery reads all the data that is required by the query.
+- You are billed for all the data that is read each time the query is run.
+
+Instead, break your query into stages where each stage materializes the query results by writing them to a destination table.
+Querying the smaller destination table reduces the amount of data that is read and lowers costs.
+The cost of storing the materialized results is much less than the cost of processing large amounts of data.
+
+## Control workload costs
+
+This section describes best practices for controlling costs within a workload.
+
+- A workload is a set of related queries. For example, a workload can be a data transformation pipeline that runs daily,
+a set of dashboards run by a group of business analysts, or several ad-hoc queries run by a set of data scientists.
+
+## Use the Google Cloud pricing calculator
+
+Best practice: Use the Google Cloud pricing calculator to create an overall monthly cost estimate for BigQuery based on projected usage.
+You can then compare this estimate to your actual costs to identify areas for optimization.
+
+"""On-demand
+Editions"""
+
+To estimate costs in the Google Cloud pricing calculator when using the on-demand pricing model, follow these steps:
+
+- Open the Google Cloud pricing calculator.
+- Click Add to estimate.
+- Select BigQuery.
+- Select "On-demand" for Service type.
+- Choose the location where the your queries will run.
+- For Amount of data queried, enter the estimated bytes read from your dry run or the query validator.
+- Enter your estimations of storage usage for Active storage, Long-term storage, Streaming inserts, and Streaming reads.
+- You only need to estimate either physical storage or logical storage, depending on the dataset storage billing model.
+- The estimate appears in the Cost details panel. For more information about the estimated cost, click Open detailed view.
+- You can also download and share the cost estimate.
+
+For more information, see On-demand pricing.
+
+## Use reservations and commitments
+
+Best practice: Use BigQuery reservations and commitments to control costs.
+
+For more information, see Restrict costs for each pricing model.
+
+## Use the slot estimator
+
+Best practice: Use slot estimator to estimate the number of slots required for your workloads.
+
+- The BigQuery slot estimator helps you to manage slot capacity based on historical performance metrics.
+
+In addition, customers using the on-demand pricing model can view sizing recommendations for commitments and autoscaling reservations with similar performance when moving to capacity-based pricing.
+
+## Cancel unnecessary long-running jobs
+
+- To free capacity, check on long-running jobs to make sure that they should continue running. If not, cancel them.
+
+- View costs using a dashboard
+
+Best practice: Create a dashboard to analyze your Cloud Billing data so you can monitor and make adjustments to your BigQuery usage.
+
+- You can export your billing data to BigQuery and visualize it in a tool such as Looker Studio.
+- For a tutorial about creating a billing dashboard, see Visualize Google Cloud billing using BigQuery and Looker Studio.
+
+## Use billing budgets and alerts
+
+Best practice: Use Cloud Billing budgets to monitor your BigQuery charges in one place.
+
+- Cloud Billing budgets let you track your actual costs against your planned costs.
+- After you've set a budget amount, you set budget alert threshold rules that are used to trigger email notifications.
+- Budget alert emails help you stay informed about how your BigQuery spend is tracking against your budget.
+
+## Control storage costs
+
+Use these best practices for optimizing the cost of BigQuery storage. You can also optimize storage for query performance.
+
+### Use long-term storage
+
+Best practice: Use long-term storage pricing to reduce cost of older data.
+
+- When you load data into BigQuery storage, the data is subject to BigQuery storage pricing.
+- For older data, you can automatically take advantage of BigQuery long-term storage pricing.
+
+- If you have a table that is not modified for 90 consecutive days, the price of storage for that table automatically drops by 50 percent.
+- If you have a partitioned table, each partition is considered separately for eligibility for long-term pricing, subject to the same rules as non-partitioned tables.
+
+## Configure the storage billing model
+
+Best practice: Optimize the storage billing model based on your usage patterns.
+
+- BigQuery supports storage billing using logical (uncompressed) or physical (compressed) bytes, or a combination of both.
+- The storage billing model configured for each dataset determines your storage pricing, but it does not impact query performance.
+
+You can use the INFORMATION_SCHEMA views to determine the storage billing model that works best based on your usage patterns.
+
+## Avoid overwriting tables
+
+Best practice: When you are using the physical storage billing model, avoid repeatedly overwriting tables.
+
+- When you overwrite a table, for example by using the --replace parameter in batch load jobs or using the TRUNCATE TABLE SQL statement,
+- the replaced data is kept for the duration of the time travel and failsafe windows.
+- If you overwrite a table frequently, you will incur additional storage charges.
+
+Instead, you can incrementally load data into a table by using the WRITE_APPEND parameter in load jobs, the MERGE SQL statement, or using the storage write API.
+
+## Reduce the time travel window
+
+Best practice: Based on your requirements, you can lower the time travel window.
+
+- Reducing the time travel window from the default value of seven days reduces the retention period for data deleted from or changed in a table.
+- You are billed for time travel storage only when using the physical (compressed) storage billing model.
+
+- The time travel window is set at the dataset level. You can also set The default time travel window for new datasets using configuration settings.
+
+## Use table expiration for destination tables
+
+Best practice: If you are writing large query results to a destination table, use the default table expiration time to remove the data when it's no longer needed.
+
+- Keeping large result sets in BigQuery storage has a cost.
+- If you don't need permanent access to the results, use the default table expiration to automatically delete the data for you.
+
+## Archive data to Cloud Storage
+
+Best practice: Consider archiving data in Cloud Storage.
+
+- You can move data from BigQuery to Cloud Storage based on the business need for archival.
+- As a best practice, consider long-term storage pricing and the physical storage billing model before exporting data out of BigQuery.
+
+## Troubleshooting BigQuery cost discrepancies and unexpected charges
+
+Follow these steps to troubleshoot unexpected BigQuery charges or cost discrepancies:
+
+1. To understand where the charges for BigQuery are coming from when looking at the Cloud Billing report, the first recommendation is grouping charges by SKU so that it is easier to observe the usage and charges for the corresponding BigQuery services.
+2. After that, study the pricing for the corresponding SKUs in the SKU documentation page or the Pricing page in the Cloud Billing UI to understand which feature it is, for example, BigQuery Storage Read API, long-term storage, on-demand pricing, Standard edition.
+3. After identifying the corresponding SKUs, use the INFORMATION_SCHEMA views to identify the specific resources associated with these charges, for example:
+
+- If you are charged for on-demand analysis, look into the INFORMATION_SCHEMA.JOBS view examples to determine jobs driving costs and users who launched them.
+- If you are charged for reservation or commitment SKUs, look into the corresponding INFORMATION_SCHEMA.RESERVATIONS and INFORMATION_SCHEMA.CAPACITY_COMMITMENTS views to identify the reservations and commitments that are being charged.
+- If the charges come from storage SKUs, look at the INFORMATION_SCHEMA.TABLE_STORAGE view examples to understand which datasets and tables are driving more costs.
+
+### Important troubleshooting considerations:
+
+- Take into account that a Daily time period in the Cloud Billing report starts at midnight US and Canadian Pacific Time (UTC-8), and observes daylight saving time shifts in the United States—adjust your calculations and data aggregations to match the same timeframes.
+- Filter by project if there are multiple projects attached to the billing account and you want to review charges coming from a specific project.
+
+Make sure to select the correct region when performing investigations.
+
+### Unexpected charges related to queries, reservations and commitments
+
+Troubleshooting unexpected charges related to job execution depends on the origin of these charges:
+
+- If you see an increase in on-demand analysis costs, this can be related to an increase in the number of jobs that were launched or the change in the amount of data that needs to be processed by jobs. Investigate this using the INFORMATION_SCHEMA.JOBS view.
+- If there is an increase in charges for committed slots, investigate this by querying INFORMATION_SCHEMA.CAPACITY_COMMITMENT_CHANGES to see if new commitments have been purchased or modified.
+- For increases in charges originating from reservation usage look into changes to reservations that are recorded in INFORMATION_SCHEMA.RESERVATION_CHANGES. To match autoscaling reservation usage with billing data follow the autoscaling example.
+
+### Slot-hours billed larger than INFORMATION_SCHEMA.JOBS view calculated slot-hours:
+
+- When using an autoscaling reservation, billing is calculated according to the number of scaled slots, not the number of slots used. BigQuery autoscales in multiples of 50 slots, which leads to billing for the nearest multiple even if less than the autoscaled amount is actually used.
+- Autoscaler has a 1 minute minimum period before scaling down, which translates into at least 1 minute being charged even if the query used the slots for less time, for example, for only 10 seconds out of the minute. The correct way to estimate charges for an autoscaling reservation is documented in the Slots Autoscaling page. For more information about using autoscaling efficiently, see autoscaling best practices to use autoscaling efficiently.
+- A similar scenario will be observed for non-autoscaling reservations—billing is calculated according to the number of slots provisioned, not the number of slots used.
+- If you want to estimate charges for a non-autoscaling reservation, you can query the RESERVATIONS_TIMELINE view directly.
+
+### Billing is less than the total bytes billed calculated through INFORMATION_SCHEMA.JOBS for project running on-demand queries
+
+There can be multiple reasons for the actual billing to be less than the calculated bytes processed:
+
+- Each project is provided with 1 TB of free tier querying per month for no extra charge.
+- SCRIPT type jobs were not excluded from the calculation, which could lead to some values being counted twice.
+- Different types of savings applied to your Cloud Billing account, such as negotiated discounts, promotional credits and others.
+- Check the Savings section of the Cloud Billing report. The free tier 1 TB of querying per month is also included here.
+
+### Billing is larger than the bytes processed calculated through INFORMATION_SCHEMA.JOBS for project running on-demand queries
+
+If the billing amount is larger than the value you calculated by querying the INFORMATION_SCHEMA.JOBS view, there might be certain conditions that caused this:
+
+- Queries over row-level security tables:
+
+Queries over tables with row-level security don't produce a value for total_bytes_billed in the INFORMATION_SCHEMA.JOBS view, therefore, the billing calculated using total_bytes_billed from INFORMATION_SCHEMA.JOBS view will be less than the billed value. See the Row Level Security best practices page for more details about why this information is not visible.
+
+- Performing ML operations in BigQuery:
+
+BigQuery ML pricing for on-demand queries depends on the type of model being created. Some of these model operations are charged at a higer rate than non-ML queries. Therefore, if you just add up all of the total_billed_bytes for the project and use the standard on-demand pricing per-TB rate, this won't be a correct pricing aggregation—you need to account for the pricing difference per-TB.
+
+- Incorrect pricing amounts:
+
+Confirm that the correct per-TB pricing values are used in the calculations - make sure to choose the correct region as prices are location-dependent. See the Pricing documentation.
+The general advice is following the recommended way of calculating the on-demand job usage for billing in our public documentation.
+
+### Billed for BigQuery Reservations API usage even though the API is disabled and not reservations or commitments used
+
+Inspect the SKU to better understand what services are charged. If the SKU billed is BigQuery Governance SKU—these are charges coming from Dataplex Universal Catalog. Some Dataplex Universal Catalog functionalities trigger job execution using BigQuery. These charges are now processed under the corresponding BigQuery Reservations API SKU. See the Dataplex Universal Catalog Pricing documentation for more details.
+
+### Project is assigned to a reservation, but still seeing BigQuery Analysis on-demand costs
+
+Read through the Troubleshooting issues with reservations section to identify where the Analysis charges might be coming from.
+
+### Unexpected charges for pay-as-you go (PAYG) slots for the BigQuery Standard Edition
+
+In the Cloud Billing report, apply a filter with the label goog-bq-feature-type with the value BQ_STUDIO_NOTEBOOK. The usage you will see is metered as pay-as-you go slots under the BigQuery Standard Edition - these are charges for using the BigQuery Studio notebook. Read more about the BigQuery Studio notebook pricing.
+
+### BigQuery Reservations API charges appearing after the Reservation API is disabled
+
+Disabling the BigQuery won't stop commitment charges. In order to stop commitment charges, you will need to delete a commitment. Set the renewal plan to NONE, and the commitment will be automatically deleted when it expires.
+
+## Unexpected storage charges
+
+Scenarios that could lead to storage charge increases:
+
+- Increases in the amount of data that is stored in your tables—use the INFORMATION_SCHEMA.TABLE_STORAGE_USAGE_TIMELINE view to monitor the change in bytes for your tables
+- Changing dataset billing models
+- Increasing the time-travel window for physical billing model datasets
+- Modification of tables that have data in long-term storage, causing them to become active storage
+
+### Deletion of table(s) or dataset(s) resulted in higher BigQuery storage costs:
+
+- The BigQuery time travel feature retains deleted data for duration of the configured time-travel window and an additional 7 days for fail-safe recovery.
+- During this retention window, the deleted data in physical storage billing model datasets contributes to the active physical storage cost, even though the tables will no longer appear in INFORMATION_SCHEMA.TABLE_STORAGE or in the console. If the table data was in long-term storage, deletion causes this data to be moved to active physical storage. This causes the corresponding cost to rise, because active physical bytes are charged approximately 2 times more than long-term physical bytes according to the BigQuery storage pricing page. The recommended approach to minimize costs caused by data deletion for physical storage billing model datasets is to reduce the time-travel window to 2 days.
+
+### Storage costs reduced with no modifications to the data:
+
+- In BigQuery users pay for active and long-term storage. Active storage charges include any table or table partition that has not been modified for 90 consecutive days, whereas long-term storage charges include tables and partitions that haven't been modified for 90 consecutive days. Overall storage cost reduction can be observed when data transitions to long-term storage, which is around 50% cheaper than active storage. Read about storage pricing for more details.
+
+### INFORMATION_SCHEMA storage calculations don't match billing:
+
+- Use the INFORMATION_SCHEMA.TABLE_STORAGE_USAGE_TIMELINE view instead of INFORMATION_SCHEMA.TABLE_STORAGE - TABLE_STORAGE_USAGE_TIMELINE provides more accurate and granular data to correctly calculate storage costs
+- The queries run on INFORMATION_SCHEMA views don't include taxes, adjustments, and rounding errors—take these into account when comparing the data. Read more about Reports in Cloud Billing on this page.
+- Data presented in the INFORMATION_SCHEMA views is in UTC, whereas billing report data is reported in the US and Canadian Pacific Time (UTC-8).
+
