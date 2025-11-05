@@ -1,0 +1,28 @@
+This file has the devops best practices when syncing dev -> prod
+
+Step 1: As usual, you will commit and push the changes from dev -> dev repo. After follow the below steps,
+
+# Pull latest Prod code (to ensure no drift)
+
+git fetch martechanalyticsprod
+
+# Compare
+
+git diff martechanalyticsprod/master --stat
+
+# Dev -> Prod
+
+git push martechanalyticsprod master
+
+# Verify
+
+git fetch --all
+git diff martechanalyticsdev/master martechanalyticsprod/master --stat
+
+# Best Practice
+
+After each successful promotion, tag the release:
+
+git tag -a v1.0.1 -m "Promoted stable Google Ads pipeline to Prod"
+git push martechanalyticsprod v1.0.1
+
