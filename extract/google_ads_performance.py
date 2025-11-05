@@ -5,10 +5,17 @@ import pandas as pd
 from dotenv import load_dotenv
 import os
 
-# Load environment variables from params.env
-load_dotenv(r"C:\Users\prasa\Root\GCP MarTech Analytics Warehouse\params.env")
+# --- Load environment file depending on runtime environment ---
+if os.path.exists("/opt/airflow/secrets/params.env"):
+    # Running inside Airflow Docker container
+    load_dotenv("/opt/airflow/secrets/params.env")
+    print(f"Running Inside Airflow Docker Container")
+else:
+    # Running locally (manual run)
+    load_dotenv(r"C:\Users\prasa\Root\GCP MarTech Analytics Warehouse\params.env")
+    print(f"Running Manual - Local")
 
-# Set Google credentials dynamically
+# --- Set Google credentials dynamically ---
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 
 PROJECT_ID = os.getenv("GCP_PROJECT_ID")
