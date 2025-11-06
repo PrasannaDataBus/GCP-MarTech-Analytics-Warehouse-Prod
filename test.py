@@ -1,4 +1,4 @@
-# Test 1: BigQuery connection test
+# Test: BigQuery connection test
 
 # from google.cloud import bigquery
 #
