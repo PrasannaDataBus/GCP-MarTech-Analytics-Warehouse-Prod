@@ -94,23 +94,25 @@ Admin Access: http://localhost:8080
 
 We strive to maintain:
 
-🧩 Clean, modular, and version-controlled code
-🔍 Clear commit messages with semantic versioning
-⚙️ Tested DAGs before merging to Prod
-🧠 Respectful collaboration and documentation clarity
+- Clean, modular, and version-controlled code
+- Clear commit messages with semantic versioning
+- Tested DAGs before merging to Prod
+- Respectful collaboration and documentation clarity
 
 🧱 Versioning
 
-Dev	master	v1.x.x	Feature development and testing
-Prod master	v1.x.x	Stable and verified releases
+- Dev	master	v1.x.x	Feature development and testing
+- Prod master	v1.x.x	Stable and verified releases
 
 🧠 Author & Maintainer
 
 Prasanna
+
 📧 prasanna.uthamaraj@informa.com
+
 🌐 GitHub: PrasannaDataBus
 
 🏁 License
 
-This repository is proprietary to Informa PLC / PrasannaDataBus.
-Unauthorized redistribution or public sharing of API credentials, business logic, or proprietary connectors is prohibited.
+- This repository is proprietary to Informa PLC / PrasannaDataBus.
+- Unauthorized redistribution or public sharing of API credentials, business logic, or proprietary connectors is prohibited.
