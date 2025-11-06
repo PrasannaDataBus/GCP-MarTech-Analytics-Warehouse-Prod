@@ -9,15 +9,28 @@ import pandas as pd
 from dotenv import load_dotenv
 import os
 
+# --- Detect environment ---
+# You can set this with PowerShell: $env:ENVIRONMENT = "DEV" (temporary) or setx ENVIRONMENT "DEV" (permanent)
+# Verify using: echo $env:ENVIRONMENT
+
+env = os.getenv("ENVIRONMENT", "DEV").upper()
+
 # --- Load environment file depending on runtime environment ---
 if os.path.exists("/opt/airflow/secrets/params.env"):
     # Running inside Airflow Docker container
     load_dotenv("/opt/airflow/secrets/params.env")
     print(f"Running Inside Airflow Docker Container")
 else:
-    # Running locally (manual run)
-    load_dotenv(r"C:\Users\prasa\Root\GCP MarTech Analytics Warehouse\params.env")
-    print(f"Running Manual - Local")
+    # Running locally
+    base_path = r"C:\Users\prasa\Root"
+    folder_name = f"GCP MarTech Analytics Warehouse - {env.title()}"  # Will become '... - Dev' or '... - Prod'
+    env_file = os.path.join(base_path, folder_name, "params.env")
+
+    if not os.path.exists(env_file):
+        raise FileNotFoundError(f"Environment file not found: {env_file}")
+
+    load_dotenv(env_file, override=True)
+    print(f"Running Manual - {env.title()} Environment")
 
 # --- Set Google credentials dynamically ---
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
