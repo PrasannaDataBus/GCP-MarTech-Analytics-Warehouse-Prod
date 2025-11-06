@@ -1,4 +1,4 @@
-# Estimate and control costs
+## Estimate and control costs
 This page describes best practices for estimating and controlling costs in BigQuery.
 
 - The primary costs in BigQuery are compute, used for query processing, and storage, for data that is stored in BigQuery.

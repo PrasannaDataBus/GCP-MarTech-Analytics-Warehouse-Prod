@@ -1,3 +1,7 @@
+# Process: Extract Raw Data and Injest into a raw schema inside a raw table
+# Data Points: Several Google Ads Account via API
+# Orchestration: Airflow-Docker-Dev
+
 from google.ads.googleads.client import GoogleAdsClient
 from google.cloud import bigquery
 from datetime import datetime, timezone, date, timedelta
