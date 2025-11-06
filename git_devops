@@ -95,6 +95,7 @@ git diff martechanalyticsdev/master martechanalyticsprod/master --stat
 # ---------------------------------------------------------------------
 # BEST PRACTICES
 # ---------------------------------------------------------------------
+# ✅ NEVER touch PROD / NEVER do changes in PROD.
 # ✅ Always push Dev → Dev first before syncing to Prod.
 # ✅ Use descriptive semantic commit messages:
 #      V1.0.0 — Historical Backfill
