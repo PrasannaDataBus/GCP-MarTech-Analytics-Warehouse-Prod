@@ -7,30 +7,71 @@ from google.cloud import bigquery
 from datetime import datetime, timezone, date, timedelta
 import pandas as pd
 from dotenv import load_dotenv
+import re
 import os
+from pathlib import Path
 
 # --- Detect environment ---
 # You can set this with PowerShell: $env:ENVIRONMENT = "DEV" (temporary) or setx ENVIRONMENT "DEV" (permanent)
 # Verify using: echo $env:ENVIRONMENT
 
-env = os.getenv("ENVIRONMENT", "DEV").upper()
 
-# --- Load environment file depending on runtime environment ---
-if os.path.exists("/opt/airflow/secrets/params.env"):
-    # Running inside Airflow Docker container
-    load_dotenv("/opt/airflow/secrets/params.env")
-    print(f"Running Inside Airflow Docker Container")
-else:
-    # Running locally
-    base_path = r"C:\Users\prasa\Root"
-    folder_name = f"GCP MarTech Analytics Warehouse - {env.title()}"  # Will become '... - Dev' or '... - Prod'
-    env_file = os.path.join(base_path, folder_name, "params.env")
+def load_environment():
+    """
+    Load params.env dynamically:
+      - If inside Airflow: /opt/airflow/secrets/params.env
+      - Else (local Windows): infer env (Dev/Prod/…) from script path
+        '...\\GCP MarTech Analytics Warehouse - <Env>\\...'
+        and load '<base>\\GCP MarTech Analytics Warehouse - <Env>\\params.env'
+    Returns the detected environment name in UPPERCASE (e.g., 'DEV', 'PROD').
+    """
+    # Airflow container
+    airflow_env = Path("/opt/airflow/secrets/params.env")
+    if airflow_env.exists():
+        load_dotenv(airflow_env.as_posix(), override=True)
+        env = (os.getenv("ENVIRONMENT_NAME") or os.getenv("ENVIRONMENT") or "AIRFLOW").strip().upper()
+        print(f"Airflow detected. Loaded: {airflow_env}")
+        print(f"Effective ENV: {env}")
+        return env
 
-    if not os.path.exists(env_file):
+    # Local path-based detection (Windows)
+    # Use __file__ if available, else fall back to CWD (helps in REPL/tests)
+    script_path = Path(__file__).resolve() if "__file__" in globals() else Path.cwd().resolve()
+    script_str = str(script_path)
+
+    # Match the folder pattern: GCP MarTech Analytics Warehouse - <Env>
+    m = re.search(r"GCP MarTech Analytics Warehouse - ([A-Za-z]+)", script_str, flags=re.IGNORECASE)
+    if not m:
+        raise ValueError(
+            "Unable to detect environment from path. Expected path segment like "
+            "'GCP MarTech Analytics Warehouse - Dev' or '- Prod'. "
+            f"Got: {script_str}"
+        )
+
+    env = m.group(1).strip().upper()  # e.g., DEV, PROD, UAT, etc.
+    base_path = Path(r"C:\Users\prasa\Root")
+    folder_name = f"GCP MarTech Analytics Warehouse - {env.title()}"
+    env_file = (base_path / folder_name / "params.env")
+
+    if not env_file.exists():
         raise FileNotFoundError(f"Environment file not found: {env_file}")
 
-    load_dotenv(env_file, override=True)
-    print(f"Running Manual - {env.title()} Environment")
+    load_dotenv(env_file.as_posix(), override=True)
+
+    # if ENVIRONMENT_NAME exists in params.env, ensure it matches
+    file_env = (os.getenv("ENVIRONMENT_NAME") or env).strip().upper()
+    if file_env != env:
+        print(f"Mismatch: path env={env}, file ENVIRONMENT_NAME={file_env}")
+
+    print(f"Local detected. Loaded: {env_file}")
+    print(f"Effective ENV: {file_env}")
+    return env
+
+
+# usage
+if __name__ == "__main__":
+    current_env = load_environment()
+    print(f"Running in {current_env} environment")
 
 # --- Set Google credentials dynamically ---
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
