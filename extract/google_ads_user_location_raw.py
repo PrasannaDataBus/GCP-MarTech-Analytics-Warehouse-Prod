@@ -78,14 +78,14 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.getenv("GOOGLE_APPLICATION_CRE
 
 PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 RAW_DATASET_NAME = os.getenv("RAW_DATASET_NAME")
-GEO_TABLE_NAME = os.getenv("GEO_TABLE_NAME")
+USER_LOCATION_TABLE_NAME = os.getenv("USER_LOCATION_TABLE_NAME")
 
 # --- AUTHENTICATION ---
 ads_config_path = os.getenv("GOOGLE_ADS_CONFIG")
 ads_client = GoogleAdsClient.load_from_storage(ads_config_path)
 bq_client = bigquery.Client()
 
-# --- GAQL Query for GEO ---
+# --- GAQL Query for USER LOCATION (City/Region/Country)---
 QUERY_TEMPLATE = """
 SELECT
   segments.date,
@@ -98,8 +98,8 @@ SELECT
   campaign.bidding_strategy_type,
   ad_group.id,
   ad_group.name,
-  geographic_view.country_criterion_id,
-  geographic_view.location_type,
+  user_location_view.country_criterion_id,
+  user_location_view.targeting_location,
   metrics.impressions,
   metrics.clicks,
   metrics.ctr,
@@ -109,7 +109,7 @@ SELECT
   metrics.conversions_value,
   metrics.all_conversions,
   metrics.view_through_conversions
-FROM geographic_view
+FROM user_location_view
 WHERE segments.date BETWEEN '{start_date}' AND '{end_date}'
 """
 
@@ -139,8 +139,8 @@ def get_child_accounts(manager_customer_id: str):
     return accounts
 
 
-def extract_geo_data(customer_id: str, start_date: str, end_date: str):
-    """Extracts GEO performance data from Google Ads for a specific account and date range."""
+def extract_user_location_data(customer_id: str, start_date: str, end_date: str):
+    """Extracts USER LOCATION performance data from Google Ads for a specific account and date range."""
     service = ads_client.get_service("GoogleAdsService")
     query = QUERY_TEMPLATE.format(start_date=start_date, end_date=end_date)
     response = service.search_stream(customer_id=customer_id, query=query)
@@ -157,8 +157,8 @@ def extract_geo_data(customer_id: str, start_date: str, end_date: str):
                 "campaign_status": row.campaign.status.name,
                 "ad_group_id": str(row.ad_group.id),
                 "ad_group_name": row.ad_group.name,
-                "geo_criterion_id": str(row.geographic_view.country_criterion_id),
-                "location_type": row.geographic_view.location_type.name,
+                "user_geo_criterion_id": str(row.user_location_view.country_criterion_id),
+                "is_targeting_location": row.user_location_view.targeting_location,
                 "impressions": row.metrics.impressions,
                 "clicks": row.metrics.clicks,
                 "ctr": row.metrics.ctr,
@@ -196,9 +196,9 @@ def extract_geo_data(customer_id: str, start_date: str, end_date: str):
     return df
 
 
-# --- FIND LAST LOADED DATE ---
+# # --- FIND LAST LOADED DATE ---
 def get_last_loaded_date():
-    table_id = f"{PROJECT_ID}.{RAW_DATASET_NAME}.{GEO_TABLE_NAME}"
+    table_id = f"{PROJECT_ID}.{RAW_DATASET_NAME}.{USER_LOCATION_TABLE_NAME}"
     query = f"SELECT MAX(date) AS last_date FROM `{table_id}`"
     result = list(bq_client.query(query))
     last_date = result[0].last_date if result and result[0].last_date else None
@@ -207,7 +207,7 @@ def get_last_loaded_date():
 
 # --- LOAD TO BIGQUERY (INCREMENTAL) ---
 def load_to_bigquery(df: pd.DataFrame, start_date: str, end_date: str, account_name: str, account_id: str):
-    table_id = f"{PROJECT_ID}.{RAW_DATASET_NAME}.{GEO_TABLE_NAME}"
+    table_id = f"{PROJECT_ID}.{RAW_DATASET_NAME}.{USER_LOCATION_TABLE_NAME}"
 
     # Delete overlapping date range to ensure no duplicates
     delete_query = f"""
@@ -221,7 +221,7 @@ def load_to_bigquery(df: pd.DataFrame, start_date: str, end_date: str, account_n
     job_config = bigquery.LoadJobConfig(write_disposition="WRITE_APPEND")
     job = bq_client.load_table_from_dataframe(df, table_id, job_config=job_config)
     job.result()
-    print(f"Loaded {len(df)} rows for {account_name} ({account_id}) into {RAW_DATASET_NAME}.{GEO_TABLE_NAME}")
+    print(f"Loaded {len(df)} rows for {account_name} ({account_id}) into {RAW_DATASET_NAME}.{USER_LOCATION_TABLE_NAME}")
 
 
 # --- MAIN ---
@@ -247,7 +247,7 @@ def main():
         print(f"\nExtracting for account: {account_name} ({customer_id})")
 
         try:
-            df = extract_geo_data(customer_id, start_date, end_date)
+            df = extract_user_location_data(customer_id, start_date, end_date)
             if df.empty:
                 print(f"No new or updated data for {account_name}")
                 continue
@@ -270,13 +270,13 @@ if __name__ == "__main__":
 # which will result in duplicate rows and cost will be incurred.
 
 # # --- LOAD TO BIGQUERY (HISTORICAL BACKFILL 2022 - 2025)
-#
+
 # def load_to_bigquery(df):
 #     # Convert date column safely to datetime.date
 #     if "date" in df.columns:
 #         df["date"] = pd.to_datetime(df["date"], errors = "coerce").dt.date
 #
-#     table_id = f"{PROJECT_ID}.{RAW_DATASET_NAME}.{GEO_TABLE_NAME}"
+#     table_id = f"{PROJECT_ID}.{RAW_DATASET_NAME}.{USER_LOCATION_TABLE_NAME}"
 #     job_config = bigquery.LoadJobConfig(write_disposition="WRITE_APPEND")
 #
 #     # define schema explicitly to ensure BigQuery types match
@@ -299,26 +299,26 @@ if __name__ == "__main__":
 #     for account in child_accounts:
 #         customer_id = str(account["id"])
 #         account_name = account["name"]
-#         print(f"\nExtracting GEO for account: {account_name} ({customer_id})")
+#         print(f"\nExtracting USER LOCATION for account: {account_name} ({customer_id})")
 #
 #         years = [2025]  # Start with one year test, expand later
 #         for yr in years:
 #             start_date = f"{yr}-01-01"
 #             end_date = f"{yr}-12-31" if yr < date.today().year else str(date.today())
 #
-#             print(f"Extracting GEO {start_date} → {end_date}")
+#             print(f"Extracting USER LOCATION {start_date} → {end_date}")
 #             try:
-#                 df = extract_geo_data(customer_id, start_date, end_date)
+#                 df = extract_user_location_data(customer_id, start_date, end_date)
 #
 #                 if df.empty:
-#                     print(f"No GEO data for {yr} in {account_name}")
+#                     print(f"No USER LOCATION data for {yr} in {account_name}")
 #                     continue
 #
-#                 print(f"Extracted GEO {len(df)} rows for {yr} ({account_name})")
+#                 print(f"Extracted USER LOCATION {len(df)} rows for {yr} ({account_name})")
 #                 load_to_bigquery(df)
 #
 #             except Exception as e:
-#                 print(f"Failed GEO for {account_name} ({customer_id}): {e}")
+#                 print(f"Failed USER LOCATION for {account_name} ({customer_id}): {e}")
 #
 #
 # if __name__ == "__main__":
