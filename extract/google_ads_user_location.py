@@ -1,6 +1,10 @@
 # Process: Extract Raw Data and Injest into a raw schema inside a raw table
 # Data Points: Several Google Ads Account via API
-# Orchestration: Airflow-Docker-Dev
+# Orchestration: Airflow-Docker-Dev & Airflow-Docker-Prod
+# Partitioning: Assigned in this script (By date)
+# Clustering: Assigned in this script (By important / relevant columns)
+# Incremental Loading: Time Travel window (14 Days)
+# MarTech Dictionary: Refer SharePoint file - MarTech Data Dictionary
 
 from google.ads.googleads.client import GoogleAdsClient
 from google.cloud import bigquery
@@ -218,7 +222,44 @@ def load_to_bigquery(df: pd.DataFrame, start_date: str, end_date: str, account_n
     bq_client.query(delete_query).result()
     print(f"Deleted existing rows for {account_name} ({account_id}) between {start_date} and {end_date}")
 
-    job_config = bigquery.LoadJobConfig(write_disposition="WRITE_APPEND")
+    job_config = bigquery.LoadJobConfig(write_disposition="WRITE_APPEND",
+                                        schema = [
+                                            bigquery.SchemaField("date", "DATE"),
+                                            bigquery.SchemaField("account_id", "STRING"),
+                                            bigquery.SchemaField("account_name", "STRING"),
+                                            bigquery.SchemaField("campaign_id", "STRING"),
+                                            bigquery.SchemaField("campaign_name", "STRING"),
+                                            bigquery.SchemaField("campaign_status", "STRING"),
+                                            bigquery.SchemaField("ad_group_id", "STRING"),
+                                            bigquery.SchemaField("ad_group_name", "STRING"),
+                                            bigquery.SchemaField("user_geo_criterion_id", "STRING"),
+                                            bigquery.SchemaField("is_targeting_location", "BOOLEAN"),
+                                            bigquery.SchemaField("impressions", "INTEGER"),
+                                            bigquery.SchemaField("clicks", "INTEGER"),
+                                            bigquery.SchemaField("ctr", "FLOAT"),
+                                            bigquery.SchemaField("average_cpc", "FLOAT"),
+                                            bigquery.SchemaField("cost_micros", "INTEGER"),
+                                            bigquery.SchemaField("conversions", "FLOAT"),
+                                            bigquery.SchemaField("conversions_value", "FLOAT"),
+                                            bigquery.SchemaField("all_conversions", "FLOAT"),
+                                            bigquery.SchemaField("view_through_conversions", "FLOAT"),
+                                            bigquery.SchemaField("bidding_strategy_type", "STRING"),
+                                            bigquery.SchemaField("currency", "STRING"),
+                                            bigquery.SchemaField("_ingested_at", "TIMESTAMP"),
+                                        ],
+                                        time_partitioning = bigquery.TimePartitioning(
+                                            type_ = bigquery.TimePartitioningType.DAY,
+                                            field = "date",  # partition by date
+                                        ),
+                                        clustering_fields = [
+                                            "account_id",
+                                            "campaign_id",
+                                            "ad_group_id",
+                                            "user_geo_criterion_id"
+                                        ],
+    )
+
+    # --- Load the DataFrame into BigQuery ---
     job = bq_client.load_table_from_dataframe(df, table_id, job_config=job_config)
     job.result()
     print(f"Loaded {len(df)} rows for {account_name} ({account_id}) into {RAW_DATASET_NAME}.{USER_LOCATION_TABLE_NAME}")
@@ -269,7 +310,7 @@ if __name__ == "__main__":
 # so do not uncomment the below logic as you will overwrite the previously existing same records
 # which will result in duplicate rows and cost will be incurred.
 
-# # --- LOAD TO BIGQUERY (HISTORICAL BACKFILL 2022 - 2025)
+# --- LOAD TO BIGQUERY (HISTORICAL BACKFILL 2022 - 2025)
 
 # def load_to_bigquery(df):
 #     # Convert date column safely to datetime.date
@@ -277,13 +318,44 @@ if __name__ == "__main__":
 #         df["date"] = pd.to_datetime(df["date"], errors = "coerce").dt.date
 #
 #     table_id = f"{PROJECT_ID}.{RAW_DATASET_NAME}.{USER_LOCATION_TABLE_NAME}"
-#     job_config = bigquery.LoadJobConfig(write_disposition="WRITE_APPEND")
+#     job_config = bigquery.LoadJobConfig(write_disposition="WRITE_APPEND",
+#                                         schema = [
+#                                             bigquery.SchemaField("date", "DATE"),
+#                                             bigquery.SchemaField("account_id", "STRING"),
+#                                             bigquery.SchemaField("account_name", "STRING"),
+#                                             bigquery.SchemaField("campaign_id", "STRING"),
+#                                             bigquery.SchemaField("campaign_name", "STRING"),
+#                                             bigquery.SchemaField("campaign_status", "STRING"),
+#                                             bigquery.SchemaField("ad_group_id", "STRING"),
+#                                             bigquery.SchemaField("ad_group_name", "STRING"),
+#                                             bigquery.SchemaField("user_geo_criterion_id", "STRING"),
+#                                             bigquery.SchemaField("is_targeting_location", "BOOLEAN"),
+#                                             bigquery.SchemaField("impressions", "INTEGER"),
+#                                             bigquery.SchemaField("clicks", "INTEGER"),
+#                                             bigquery.SchemaField("ctr", "FLOAT"),
+#                                             bigquery.SchemaField("average_cpc", "FLOAT"),
+#                                             bigquery.SchemaField("cost_micros", "INTEGER"),
+#                                             bigquery.SchemaField("conversions", "FLOAT"),
+#                                             bigquery.SchemaField("conversions_value", "FLOAT"),
+#                                             bigquery.SchemaField("all_conversions", "FLOAT"),
+#                                             bigquery.SchemaField("view_through_conversions", "FLOAT"),
+#                                             bigquery.SchemaField("bidding_strategy_type", "STRING"),
+#                                             bigquery.SchemaField("currency", "STRING"),
+#                                             bigquery.SchemaField("_ingested_at", "TIMESTAMP"),
+#                                         ],
+#                                         time_partitioning = bigquery.TimePartitioning(
+#                                             type_ = bigquery.TimePartitioningType.DAY,
+#                                             field = "date",  # partition by date
+#                                         ),
+#                                         clustering_fields = [
+#                                             "account_id",
+#                                             "campaign_id",
+#                                             "ad_group_id",
+#                                             "user_geo_criterion_id"
+#                                         ],
+#     )
 #
-#     # define schema explicitly to ensure BigQuery types match
-#     job_config.schema = [
-#         bigquery.SchemaField("date", "DATE"),
-#     ]
-#
+#     # --- Load the DataFrame into BigQuery ---
 #     job = bq_client.load_table_from_dataframe(df, table_id, job_config=job_config)
 #     job.result()
 #     print(f"Loaded {len(df)} rows into {table_id}")
