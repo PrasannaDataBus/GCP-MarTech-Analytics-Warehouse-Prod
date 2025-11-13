@@ -126,7 +126,7 @@ def get_child_accounts(manager_customer_id: str):
 
 
 def extract_audience_dimension(customer_id: str):
-    """Extracts AUDIENCE DIMENSION data from Google Ads for a specific account and date range."""
+    """Extracts AUDIENCE DIMENSION data from Google Ads for a specific account"""
     service = ads_client.get_service("GoogleAdsService")
     query = QUERY_TEMPLATE
 
@@ -165,7 +165,7 @@ def extract_audience_dimension(customer_id: str):
     return df
 
 
-# --- LOAD TO BIGQUERY (INCREMENTAL) ---
+# --- LOAD TO BIGQUERY
 def load_audience_dim_to_bigquery(df: pd.DataFrame):
     table_id = f"{PROJECT_ID}.{RAW_DATASET_NAME}.{AUDIENCE_DIM_TABLE_NAME}"
 
