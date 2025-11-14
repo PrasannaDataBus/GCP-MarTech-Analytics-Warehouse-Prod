@@ -105,6 +105,7 @@ SELECT
   ad_group_criterion.criterion_id,
   ad_group_criterion.keyword.text,
   ad_group_criterion.keyword.match_type,
+  ad_group_criterion.quality_info.quality_score,
   metrics.impressions,
   metrics.clicks,
   metrics.ctr,
@@ -165,6 +166,7 @@ def extract_keyword_data(customer_id: str, start_date: str, end_date: str):
                 "keyword_id": str(row.ad_group_criterion.criterion_id),
                 "keyword_text": getattr(row.ad_group_criterion.keyword, "text", None),
                 "keyword_match_type": getattr(row.ad_group_criterion.keyword.match_type, "name", None),
+                "quality_score": row.ad_group_criterion.quality_info.quality_score,
                 "impressions": row.metrics.impressions,
                 "clicks": row.metrics.clicks,
                 "ctr": row.metrics.ctr,
@@ -195,6 +197,7 @@ def extract_keyword_data(customer_id: str, start_date: str, end_date: str):
             "conversions": "float64",
             "conversions_value": "float64",
             "all_conversions": "float64",
+            "quality_score": "int64",
     })
 
     return df
@@ -235,6 +238,7 @@ def load_to_bigquery(df: pd.DataFrame, start_date: str, end_date: str, account_n
                                             bigquery.SchemaField("keyword_id", "STRING"),
                                             bigquery.SchemaField("keyword_text", "STRING"),
                                             bigquery.SchemaField("keyword_match_type", "STRING"),
+                                            bigquery.SchemaField("quality_score", "INTEGER"),
                                             bigquery.SchemaField("impressions", "INTEGER"),
                                             bigquery.SchemaField("clicks", "INTEGER"),
                                             bigquery.SchemaField("ctr", "FLOAT"),
@@ -331,6 +335,7 @@ if __name__ == "__main__":
 #                                             bigquery.SchemaField("keyword_id", "STRING"),
 #                                             bigquery.SchemaField("keyword_text", "STRING"),
 #                                             bigquery.SchemaField("keyword_match_type", "STRING"),
+#                                             bigquery.SchemaField("quality_score", "INTEGER"),
 #                                             bigquery.SchemaField("impressions", "INTEGER"),
 #                                             bigquery.SchemaField("clicks", "INTEGER"),
 #                                             bigquery.SchemaField("ctr", "FLOAT"),
