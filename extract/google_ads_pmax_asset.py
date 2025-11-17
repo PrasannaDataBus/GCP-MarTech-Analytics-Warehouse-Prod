@@ -243,8 +243,6 @@ def load_to_bigquery(df: pd.DataFrame, start_date: str, end_date: str, account_n
                                             bigquery.SchemaField("conversions", "FLOAT"),
                                             bigquery.SchemaField("conversions_value", "FLOAT"),
                                             bigquery.SchemaField("all_conversions", "FLOAT"),
-                                            bigquery.SchemaField("view_through_conversions", "FLOAT"),
-                                            bigquery.SchemaField("engagements", "INTEGER"),
                                             bigquery.SchemaField("bidding_strategy_type", "STRING"),
                                             bigquery.SchemaField("currency", "STRING"),
                                             bigquery.SchemaField("_ingested_at", "TIMESTAMP"),
