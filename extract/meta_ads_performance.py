@@ -205,7 +205,6 @@ def extract_meta_performance_data(account_id: str, account_name: str, start_date
                     "adset_name": item['adset_name'],
                     "ad_id": item['ad_id'],
                     "ad_name": item['ad_name'],
-
                     "impressions": int(item.get('impressions', 0)),
                     "clicks": int(item.get('clicks', 0)),
                     "spend": float(item.get('spend', 0.0)),
@@ -280,7 +279,6 @@ def load_to_bigquery(df: pd.DataFrame, start_date: str, end_date: str, account_i
             bigquery.SchemaField("adset_name", "STRING"),
             bigquery.SchemaField("ad_id", "STRING"),
             bigquery.SchemaField("ad_name", "STRING"),
-
             bigquery.SchemaField("impressions", "INTEGER"),
             bigquery.SchemaField("clicks", "INTEGER"),
             bigquery.SchemaField("spend", "FLOAT"),
@@ -300,7 +298,7 @@ def load_to_bigquery(df: pd.DataFrame, start_date: str, end_date: str, account_i
             type_ = bigquery.TimePartitioningType.DAY,
             field = "date",
         ),
-        clustering_fields = ["account_id", "campaign_id", "adset_id"]
+        clustering_fields = ["account_id", "campaign_id", "ad_id"]
     )
 
     job = bq_client.load_table_from_dataframe(df, table_id, job_config = job_config)
