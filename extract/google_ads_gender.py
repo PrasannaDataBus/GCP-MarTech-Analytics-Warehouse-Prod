@@ -73,21 +73,21 @@ def load_environment():
 
 
 # usage
+current_env = load_environment()
 if __name__ == "__main__":
-    current_env = load_environment()
     print(f"Running in {current_env} environment")
 
-# --- Set Google credentials dynamically ---
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+# --- LOAD CONFIG STRINGS (SAFE AT TOP LEVEL) ---
+GOOGLE_ADS_CONFIG = os.getenv("GOOGLE_ADS_CONFIG")
+CREDENTIALS_PATH = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+
+# Ensure env var is set for BigQuery (Safe)
+if CREDENTIALS_PATH:
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = CREDENTIALS_PATH
 
 PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 RAW_DATASET_NAME = os.getenv("RAW_DATASET_NAME")
 GENDER_TABLE_NAME = os.getenv("GENDER_TABLE_NAME")
-
-# --- AUTHENTICATION ---
-ads_config_path = os.getenv("GOOGLE_ADS_CONFIG")
-ads_client = GoogleAdsClient.load_from_storage(ads_config_path)
-bq_client = bigquery.Client()
 
 # --- GAQL Query for GENDER---
 QUERY_TEMPLATE = """
@@ -118,8 +118,27 @@ WHERE segments.date BETWEEN '{start_date}' AND '{end_date}'
 """
 
 
+# ---------------------------------------------------------
+# HELPER: LAZY LOAD CLIENTS
+# ---------------------------------------------------------
+def get_clients():
+    """
+    Initializes clients ONLY when called, prevents Import crashes in Airflow.
+    """
+    if not GOOGLE_ADS_CONFIG:
+        raise ValueError("GOOGLE_ADS_CONFIG environment variable is missing")
+
+    # print(f"Connecting to Google Ads using config: {GOOGLE_ADS_CONFIG}")
+
+    # Network calls happen HERE now
+    ads_client = GoogleAdsClient.load_from_storage(GOOGLE_ADS_CONFIG)
+    bq_client = bigquery.Client()
+
+    return ads_client, bq_client
+
+
 # --- FETCH ALL CLIENT ACCOUNTS (for MCC) ---
-def get_child_accounts(manager_customer_id: str):
+def get_child_accounts(manager_customer_id: str, ads_client):
     """Fetch all client accounts under a manager (MCC)."""
     service = ads_client.get_service("GoogleAdsService")
     query = """
@@ -143,7 +162,7 @@ def get_child_accounts(manager_customer_id: str):
     return accounts
 
 
-def extract_gender_data(customer_id: str, start_date: str, end_date: str):
+def extract_gender_data(customer_id: str, start_date: str, end_date: str, ads_client):
     """Extracts GENDER performance data from Google Ads for a specific account and date range."""
     service = ads_client.get_service("GoogleAdsService")
     query = QUERY_TEMPLATE.format(start_date=start_date, end_date=end_date)
@@ -202,7 +221,7 @@ def extract_gender_data(customer_id: str, start_date: str, end_date: str):
 
 
 # # --- FIND LAST LOADED DATE ---
-def get_last_loaded_date():
+def get_last_loaded_date(bq_client):
     table_id = f"{PROJECT_ID}.{RAW_DATASET_NAME}.{GENDER_TABLE_NAME}"
     query = f"SELECT MAX(date) AS last_date FROM `{table_id}`"
     result = list(bq_client.query(query))
@@ -211,7 +230,7 @@ def get_last_loaded_date():
 
 
 # --- LOAD TO BIGQUERY (INCREMENTAL) ---
-def load_to_bigquery(df: pd.DataFrame, start_date: str, end_date: str, account_name: str, account_id: str):
+def load_to_bigquery(df: pd.DataFrame, start_date: str, end_date: str, account_name: str, account_id: str, bq_client):
     table_id = f"{PROJECT_ID}.{RAW_DATASET_NAME}.{GENDER_TABLE_NAME}"
 
     # Delete overlapping date range to ensure no duplicates
@@ -268,11 +287,14 @@ def load_to_bigquery(df: pd.DataFrame, start_date: str, end_date: str, account_n
 
 # --- MAIN ---
 def main():
+    # 1. CALL THE NEW FUNCTION TO CONNECT
+    ads_client, bq_client = get_clients()
+
     manager_id = ads_client.login_customer_id or ads_client.client_customer_id
-    child_accounts = get_child_accounts(manager_id)
+    child_accounts = get_child_accounts(manager_id, ads_client)
     print(f"Found {len(child_accounts)} client accounts under manager {manager_id}")
 
-    last_loaded_date = get_last_loaded_date()
+    last_loaded_date = get_last_loaded_date(bq_client)
     lookback_days = 14  # configurable window for late updates
     if last_loaded_date:
         start_date = (last_loaded_date - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
@@ -289,12 +311,12 @@ def main():
         print(f"\nExtracting for account: {account_name} ({customer_id})")
 
         try:
-            df = extract_gender_data(customer_id, start_date, end_date)
+            df = extract_gender_data(customer_id, start_date, end_date, ads_client)
             if df.empty:
                 print(f"No new or updated data for {account_name}")
                 continue
             print(f"Extracted {len(df)} rows for {account_name}")
-            load_to_bigquery(df, start_date, end_date, account_name, customer_id)
+            load_to_bigquery(df, start_date, end_date, account_name, customer_id, bq_client)
         except Exception as e:
             print(f"Failed for {account_name} ({customer_id}): {e}")
 
@@ -313,7 +335,7 @@ if __name__ == "__main__":
 
 # --- LOAD TO BIGQUERY (HISTORICAL BACKFILL 2022 - 2025)
 
-# def load_to_bigquery(df):
+# def load_to_bigquery(df, bq_client):
 #     # Convert date column safely to datetime.date
 #     if "date" in df.columns:
 #         df["date"] = pd.to_datetime(df["date"], errors = "coerce").dt.date
@@ -364,8 +386,11 @@ if __name__ == "__main__":
 #
 # # --- MAIN EXECUTION ---
 # def main():
+#     #1. Connect Clients
+#     ads_client, bq_client = get_clients()
+#
 #     manager_id = ads_client.login_customer_id or ads_client.client_customer_id
-#     child_accounts = get_child_accounts(manager_id)
+#     child_accounts = get_child_accounts(manager_id, ads_client)
 #
 #     print(f"Found {len(child_accounts)} client accounts under manager {manager_id}")
 #
@@ -381,14 +406,14 @@ if __name__ == "__main__":
 #
 #             print(f"Extracting GENDER {start_date} → {end_date}")
 #             try:
-#                 df = extract_gender_data(customer_id, start_date, end_date)
+#                 df = extract_gender_data(customer_id, start_date, end_date, ads_client)
 #
 #                 if df.empty:
 #                     print(f"No GENDER data for {yr} in {account_name}")
 #                     continue
 #
 #                 print(f"Extracted GENDER {len(df)} rows for {yr} ({account_name})")
-#                 load_to_bigquery(df)
+#                 load_to_bigquery(df, bq_client)
 #
 #             except Exception as e:
 #                 print(f"Failed GENDER for {account_name} ({customer_id}): {e}")

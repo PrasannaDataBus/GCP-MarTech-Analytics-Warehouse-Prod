@@ -76,21 +76,17 @@ def load_environment():
 
 
 # usage
+current_env = load_environment()
 if __name__ == "__main__":
-    current_env = load_environment()
     print(f"Running in {current_env} environment")
 
-# --- Set Google credentials dynamically ---
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+# --- Set Google credentials dynamically (Safe String) ---
+if os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
 
 PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 RAW_DATASET_NAME = os.getenv("RAW_DATASET_NAME")
 META_PERFORMANCE_TABLE_NAME = os.getenv("META_PERFORMANCE_TABLE_NAME")
-
-# --- META CREDENTIALS ---
-META_APP_ID = os.getenv("META_APP_ID")
-META_APP_SECRET = os.getenv("META_APP_SECRET")
-META_ACCESS_TOKEN = os.getenv("META_ACCESS_TOKEN")
 
 # --- AUTHENTICATION ---
 bq_client = bigquery.Client()
@@ -118,6 +114,14 @@ FIELDS = [
     'actions', # Conversions List
     'action_values' # Revenue List
 ]
+
+
+# ---------------------------------------------------------
+# HELPER: LAZY LOAD CLIENTS (BQ Only for Meta Script)
+# ---------------------------------------------------------
+def get_bq_client():
+    """Safe BQ Client initialization"""
+    return bigquery.Client()
 
 
 # --- HELPER: Date Chunks (The Fix for Timeouts) ---
@@ -235,7 +239,7 @@ def extract_meta_performance_data(account_id: str, account_name: str, start_date
 
 
 # --- HELPER: Get Last Loaded Date ---
-def get_last_loaded_date():
+def get_last_loaded_date(bq_client):
     table_id = f"{PROJECT_ID}.{RAW_DATASET_NAME}.{META_PERFORMANCE_TABLE_NAME}"
     try:
         query = f"SELECT MAX(date) AS max_date FROM `{table_id}`"
@@ -248,7 +252,7 @@ def get_last_loaded_date():
 
 
 # --- LOAD FUNCTION (Idempotent) ---
-def load_to_bigquery(df: pd.DataFrame, start_date: str, end_date: str, account_id: str):
+def load_to_bigquery(df: pd.DataFrame, start_date: str, end_date: str, account_id: str, bq_client):
     table_id = f"{PROJECT_ID}.{RAW_DATASET_NAME}.{META_PERFORMANCE_TABLE_NAME}"
 
     clean_acc_id = df['account_id'].iloc[0]
@@ -306,15 +310,21 @@ def load_to_bigquery(df: pd.DataFrame, start_date: str, end_date: str, account_i
 
 # --- MAIN EXECUTION ---
 def main():
-    # 1. Load Environment Variables
+    # 1. Load Environment & Init BQ
     load_environment()
+    bq_client = get_bq_client()  # BQ needed here
 
-    # 2. Check Credentials availability after loading
+    # 2. READ CREDENTIALS (AFTER load_environment has run)
+    META_APP_ID = os.getenv("META_APP_ID")
+    META_APP_SECRET = os.getenv("META_APP_SECRET")
+    META_ACCESS_TOKEN = os.getenv("META_ACCESS_TOKEN")
+
+    # 3. Check Credentials availability after loading
     if not all([META_APP_ID, META_APP_SECRET, META_ACCESS_TOKEN]):
         print("Error: Missing Meta credentials (APP_ID, SECRET, TOKEN). Check params.env.")
         return
 
-    # 3. INITIALIZE META API (This was missing/misplaced in your error)
+    # 4. INITIALIZE META API (This was missing/misplaced in your error)
     try:
         FacebookAdsApi.init(META_APP_ID, META_APP_SECRET, META_ACCESS_TOKEN)
         print("Meta API Initialized Successfully")
@@ -324,7 +334,7 @@ def main():
 
     print("--- Starting Meta Ads Performance Extraction ---")
 
-    # 4. Get Accounts (Now this will work because API is init)
+    # 5. Get Accounts (Now this will work because API is init)
     try:
         accounts = get_ad_accounts()
         print(f"Found {len(accounts)} Ad Accounts.")
@@ -336,7 +346,7 @@ def main():
     # AUTOMATIC INCREMENTAL LOAD (DEFAULT)
     # ==============================================================================
 
-    last_date = get_last_loaded_date()
+    last_date = get_last_loaded_date(bq_client)
     lookback_days = 14
 
     if last_date:
@@ -357,7 +367,7 @@ def main():
             df = extract_meta_performance_data(acc_id, acc_name, start_date, end_date, currency)
             if not df.empty:
                 print(f"Extracted {len(df)} rows for {acc_name}.")
-                load_to_bigquery(df, start_date, end_date, acc_id)
+                load_to_bigquery(df, start_date, end_date, acc_id, bq_client)
             else:
                 print(f"No data for {acc_name} in this range.")
         except Exception as e:
@@ -399,7 +409,7 @@ def main():
     #
     #             if not df.empty:
     #                 # Important: We pass the specific dates to ensure DELETE works correctly for this slice
-    #                 load_to_bigquery(df, start_date, end_date, acc_id)
+    #                 load_to_bigquery(df, start_date, end_date, acc_id, bq_client)
     #             else:
     #                 print(f"     No data for {yr}.")
     #
