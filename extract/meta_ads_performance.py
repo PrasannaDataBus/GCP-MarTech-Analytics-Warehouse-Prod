@@ -1,5 +1,5 @@
 # Process: Extract Raw Data and Injest into a raw schema inside a raw table
-# Data Points: Several Meta Ads Account via API
+# Data Points: Several Meta Ads Account Graph API
 # Orchestration: Airflow-Docker-Dev & Airflow-Docker-Prod
 # Partitioning: Assigned in this script (By date)
 # Clustering: Assigned in this script (By important / relevant columns)
