@@ -1,5 +1,5 @@
 # Process: Extract Raw Data and Injest into a raw schema inside a raw table
-# Data Points: Several Meta Ads Account Graph API
+# Data Points: Several Meta Ads Account via Graph API
 # Orchestration: Airflow-Docker-Dev & Airflow-Docker-Prod
 # Partitioning: Assigned in this script (By date)
 # Clustering: Assigned in this script (By important / relevant columns)
@@ -86,12 +86,13 @@ if os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
 
 PROJECT_ID = os.getenv("GCP_PROJECT_ID")
 RAW_DATASET_NAME = os.getenv("RAW_DATASET_NAME")
-META_PERFORMANCE_TABLE_NAME = os.getenv("META_PERFORMANCE_TABLE_NAME")
+META_AGE_GENDER_TABLE_NAME = os.getenv("META_AGE_GENDER_TABLE_NAME")
 
 # --- AUTHENTICATION ---
 bq_client = bigquery.Client()
 
 # --- FIELDS TO EXTRACT ---
+# Note: 'age' and 'gender' are NOT in fields, they come from 'breakdowns' param
 FIELDS = [
     'date_start',
     'date_stop',
@@ -107,12 +108,8 @@ FIELDS = [
     'clicks',
     'spend',
     'ctr',
-    'cpc',
-    'cpm',
-    'reach',
-    'frequency',
-    'actions', # Conversions List
-    'action_values' # Revenue List
+    'actions',      # Conversions
+    'action_values' # Revenue
 ]
 
 
@@ -156,8 +153,8 @@ def get_ad_accounts():
 
 
 # --- EXTRACTION FUNCTION (Updated with Chunking) ---
-def extract_meta_performance_data(account_id: str, account_name: str, start_date: str, end_date: str, currency: str):
-    """Extracts performance data for a specific Meta Ad Account using date chunking."""
+def extract_age_gender_data(account_id: str, account_name: str, start_date: str, end_date: str, currency: str):
+    """Extracts Age, Gender data for a specific Meta Ad Account using date chunking."""
 
     # Ensure 'act_' prefix
     formatted_id = account_id if account_id.startswith('act_') else f"act_{account_id}"
@@ -175,6 +172,7 @@ def extract_meta_performance_data(account_id: str, account_name: str, start_date
             'time_range': time_range,
             'time_increment': 1,
             'level': 'ad',
+            'breakdowns': ['age', 'gender'],  # <--- THE KEY DIFFERENCE
             'limit': 500,
         }
 
@@ -205,6 +203,11 @@ def extract_meta_performance_data(account_id: str, account_name: str, start_date
                     "adset_name": item['adset_name'],
                     "ad_id": item['ad_id'],
                     "ad_name": item['ad_name'],
+
+                    # --- Breakdown Fields ---
+                    "age": item.get('age', 'Unknown'),
+                    "gender": item.get('gender', 'Unknown'),
+
                     "impressions": int(item.get('impressions', 0)),
                     "clicks": int(item.get('clicks', 0)),
                     "spend": float(item.get('spend', 0.0)),
@@ -239,7 +242,7 @@ def extract_meta_performance_data(account_id: str, account_name: str, start_date
 
 # --- HELPER: Get Last Loaded Date ---
 def get_last_loaded_date(bq_client):
-    table_id = f"{PROJECT_ID}.{RAW_DATASET_NAME}.{META_PERFORMANCE_TABLE_NAME}"
+    table_id = f"{PROJECT_ID}.{RAW_DATASET_NAME}.{META_AGE_GENDER_TABLE_NAME}"
     try:
         query = f"SELECT MAX(date) AS max_date FROM `{table_id}`"
         results = bq_client.query(query).result()
@@ -252,7 +255,7 @@ def get_last_loaded_date(bq_client):
 
 # --- LOAD FUNCTION (Idempotent) ---
 def load_to_bigquery(df: pd.DataFrame, start_date: str, end_date: str, account_id: str, bq_client):
-    table_id = f"{PROJECT_ID}.{RAW_DATASET_NAME}.{META_PERFORMANCE_TABLE_NAME}"
+    table_id = f"{PROJECT_ID}.{RAW_DATASET_NAME}.{META_AGE_GENDER_TABLE_NAME}"
 
     clean_acc_id = df['account_id'].iloc[0]
 
@@ -279,6 +282,11 @@ def load_to_bigquery(df: pd.DataFrame, start_date: str, end_date: str, account_i
             bigquery.SchemaField("adset_name", "STRING"),
             bigquery.SchemaField("ad_id", "STRING"),
             bigquery.SchemaField("ad_name", "STRING"),
+
+            # Demographic Fields
+            bigquery.SchemaField("age", "STRING"),
+            bigquery.SchemaField("gender", "STRING"),
+
             bigquery.SchemaField("impressions", "INTEGER"),
             bigquery.SchemaField("clicks", "INTEGER"),
             bigquery.SchemaField("spend", "FLOAT"),
@@ -298,7 +306,7 @@ def load_to_bigquery(df: pd.DataFrame, start_date: str, end_date: str, account_i
             type_ = bigquery.TimePartitioningType.DAY,
             field = "date",
         ),
-        clustering_fields = ["account_id", "campaign_id", "ad_id"]
+        clustering_fields = ["account_id", "campaign_id", "age", "gender"]
     )
 
     job = bq_client.load_table_from_dataframe(df, table_id, job_config = job_config)
@@ -330,7 +338,7 @@ def main():
         print(f"Failed to initialize Meta API: {e}")
         return
 
-    print("--- Starting Meta Ads Performance Extraction ---")
+    print("--- Starting Meta Ads Age, Gender Extraction ---")
 
     # 5. Get Accounts (Now this will work because API is init)
     try:
@@ -339,6 +347,9 @@ def main():
     except Exception as e:
         print(f"Error fetching ad accounts: {e}")
         return
+
+    # --- Initialize failure tracking ---
+    failed_accounts = []
 
     # ==============================================================================
     # AUTOMATIC INCREMENTAL LOAD (DEFAULT)
@@ -356,16 +367,13 @@ def main():
 
     end_date = date.today().strftime("%Y-%m-%d")
 
-    # --- Initialize failure tracking ---
-    failed_accounts = []
-
     for acc in accounts:
         acc_id = acc['id']
         acc_name = acc['name']
         currency = acc['currency']
 
         try:
-            df = extract_meta_performance_data(acc_id, acc_name, start_date, end_date, currency)
+            df = extract_age_gender_data(acc_id, acc_name, start_date, end_date, currency)
             if not df.empty:
                 print(f"Extracted {len(df)} rows for {acc_name}.")
                 load_to_bigquery(df, start_date, end_date, acc_id, bq_client)
@@ -408,7 +416,7 @@ def main():
     #         print(f"  -> Extracting Year {yr}: {start_date} to {end_date}")
     #
     #         try:
-    #             df = extract_meta_performance_data(acc_id, acc_name, start_date, end_date, currency)
+    #             df = extract_age_gender_data(acc_id, acc_name, start_date, end_date, currency)
     #
     #             if not df.empty:
     #                 # Important: We pass the specific dates to ensure DELETE works correctly for this slice
@@ -417,7 +425,10 @@ def main():
     #                 print(f"     No data for {yr}.")
     #
     #         except Exception as e:
-    #             print(f"     Failed for {yr}: {e}")
+    #             # Report job failure to Backfill Loop ---
+    #             error_msg = f"Failed Backfill {acc_name} ({yr}): {e}"
+    #             print(error_msg)
+    #             failed_accounts.append(error_msg)
 
     # --- FINAL FAILURE CHECK ---
     # If there were ANY failures during the loop, raise an exception now.
