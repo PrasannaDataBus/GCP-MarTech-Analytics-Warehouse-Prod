@@ -134,35 +134,28 @@ def extract_ad_definitions(account_id: str, account_name: str):
 
     data_rows = []
 
-    try:
-        # Fetch ADS using the corrected FIELDS list
-        ads = account.get_ads(fields = FIELDS, params = {'limit': 500})
+    ads = account.get_ads(fields = FIELDS, params = {'limit': 500})
 
-        # Iterate through the cursor (pagination is automatic in the SDK loop)
-        count = 0
-        for ad in ads:
-            count += 1
-            if count % 500 == 0:
-                print(f"  ...fetched {count} ads dimensions")
+    # Iterate through the cursor (pagination is automatic in the SDK loop)
+    count = 0
+    for ad in ads:
+        count += 1
+        if count % 500 == 0:
+            print(f"  ...fetched {count} ads dimensions")
 
-            creative_data = ad.get('creative', {})
+        creative_data = ad.get('creative', {})
 
-            data_rows.append({
-                'ad_id': ad['id'],
-                'ad_name': ad.get('name'),
-                'account_id': account_id.replace("act_", ""),
-                'account_name': account_name,
-                'status': ad.get('status'),
-                'creative_id': creative_data.get('id'),  # THE KEY LINK
-                'created_time': ad.get('created_time'),
-                'updated_time': ad.get('updated_time'),
-                '_ingested_at': datetime.now()
-            })
-
-    except FacebookRequestError as e:
-        print(f"Meta API Error for {account_name}: {e.api_error_message()}")
-        # Return whatever we managed to grab before the error
-        return pd.DataFrame(data_rows)
+        data_rows.append({
+            'ad_id': ad['id'],
+            'ad_name': ad.get('name'),
+            'account_id': account_id.replace("act_", ""),
+            'account_name': account_name,
+            'status': ad.get('status'),
+            'creative_id': creative_data.get('id'),  # THE KEY LINK
+            'created_time': ad.get('created_time'),
+            'updated_time': ad.get('updated_time'),
+            '_ingested_at': datetime.now()
+        })
 
     df = pd.DataFrame(data_rows)
     return df
@@ -230,6 +223,7 @@ def main():
         return
 
     all_ads_dfs = []
+    failed_accounts = []
 
     # 6. Loop and Extract
     for acc in accounts:
@@ -244,7 +238,9 @@ def main():
             else:
                 print(f"     {acc_name}: No Ad dimensions found.")
         except Exception as e:
-            print(f"     Failed for {acc_name}: {e}")
+            error_msg = f"Failed for {acc_name} ({acc_id}): {e}"
+            print(error_msg)
+            failed_accounts.append(error_msg)
 
     # 7. Consolidate and Load
     if all_ads_dfs:
@@ -260,8 +256,19 @@ def main():
             print("--- Meta Ad dimensions Dimension Load Complete ---")
         except Exception as e:
             print(f"Failed to load to BigQuery: {e}")
+            raise e  # <--- Forces Airflow to Fail if BQ load fails
     else:
         print("No Ad dimensions extracted from any account.")
+
+    # --- FINAL FAILURE CHECK ---
+    # If there were ANY failures during the loop, raise an exception now.
+    if failed_accounts:
+        print("\nCRITICAL: The following accounts failed extraction:")
+        for err in failed_accounts:
+            print(f" - {err}")
+
+        # This ensures Airflow marks the task as FAILED so you get the email/alert
+        raise Exception(f"Script completed with errors in {len(failed_accounts)} accounts.")
 
 
 if __name__ == "__main__":

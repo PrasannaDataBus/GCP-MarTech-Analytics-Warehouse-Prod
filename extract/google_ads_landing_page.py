@@ -282,8 +282,13 @@ def main():
     ads_client, bq_client = get_clients()
 
     manager_id = ads_client.login_customer_id or ads_client.client_customer_id
+
+    # 2. PASS THE CLIENTS AS ARGUMENTS
     child_accounts = get_child_accounts(manager_id, ads_client)
     print(f"Found {len(child_accounts)} client accounts under manager {manager_id}")
+
+    # Define IDs to Ignore
+    EXCLUDED_IDS = ['8024672713']
 
     last_loaded_date = get_last_loaded_date(bq_client)
     lookback_days = 14  # configurable window for late updates
@@ -296,20 +301,44 @@ def main():
 
     print(f"Incremental load from {start_date} → {end_date}")
 
+    # --- Initialize the list ---
+    failed_accounts = []
+
     for account in child_accounts:
         customer_id = str(account["id"])
         account_name = account["name"]
+
+        # --- The Skip Logic ---
+        if customer_id in EXCLUDED_IDS:
+            print(f"Skipping known Test Account: {account_name} ({customer_id})")
+            continue  # Jumps to the next account immediately. No API call, no error.
+
         print(f"\nExtracting for account: {account_name} ({customer_id})")
 
         try:
+            # Step 1: Extract
             df = extract_landing_page_data(customer_id, start_date, end_date, ads_client)
             if df.empty:
                 print(f"No new or updated data for {account_name}")
                 continue
             print(f"Extracted {len(df)} rows for {account_name}")
+            # Step 2: Load (Happens per account strategy)
             load_to_bigquery(df, start_date, end_date, account_name, customer_id, bq_client)
         except Exception as e:
-            print(f"Failed for {account_name} ({customer_id}): {e}")
+            # Capture error, Log it, Track it, but DO NOT STOP the loop
+            error_msg = f"Failed for {account_name} ({customer_id}): {e}"
+            print(error_msg)
+            failed_accounts.append(error_msg)
+
+    # --- FINAL FAILURE CHECK ---
+    # If there were ANY failures during the loop, raise an exception now.
+    if failed_accounts:
+        print("\nCRITICAL: The following accounts failed extraction/loading:")
+        for err in failed_accounts:
+            print(f" - {err}")
+
+        # This ensures Airflow marks the task as FAILED so you get the email/alert
+        raise Exception(f"Script completed with errors in {len(failed_accounts)} accounts.")
 
 
 if __name__ == "__main__":

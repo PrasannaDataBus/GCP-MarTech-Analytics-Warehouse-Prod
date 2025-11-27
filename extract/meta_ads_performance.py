@@ -226,8 +226,8 @@ def extract_meta_performance_data(account_id: str, account_name: str, start_date
             time.sleep(1)
 
         except FacebookRequestError as e:
+            # We catch the error here to allow other chunks to proceed
             print(f"Meta API Error for {account_name} (Chunk {chunk_start}): {e.api_error_message()}")
-            # We continue to the next chunk instead of failing the whole year
             continue
 
     df = pd.DataFrame(all_data_rows)
@@ -356,6 +356,9 @@ def main():
 
     end_date = date.today().strftime("%Y-%m-%d")
 
+    # --- Initialize failure tracking ---
+    failed_accounts = []
+
     for acc in accounts:
         acc_id = acc['id']
         acc_name = acc['name']
@@ -369,7 +372,9 @@ def main():
             else:
                 print(f"No data for {acc_name} in this range.")
         except Exception as e:
-            print(f"Failed to process {acc_name}: {e}")
+            error_msg = f"Failed to process {acc_name}: {e}"
+            print(error_msg)
+            failed_accounts.append(error_msg)
 
     # ==============================================================================
     # HISTORICAL BACKFILL (2023 - 2025)
@@ -413,7 +418,17 @@ def main():
     #
     #         except Exception as e:
     #             print(f"     Failed for {yr}: {e}")
-    #
+
+    # --- FINAL FAILURE CHECK ---
+    # If there were ANY failures during the loop, raise an exception now.
+    if failed_accounts:
+        print("\nCRITICAL: The following accounts failed extraction:")
+        for err in failed_accounts:
+            print(f" - {err}")
+
+        # This ensures Airflow marks the task as FAILED so you get the email/alert
+        raise Exception(f"Script completed with errors in {len(failed_accounts)} accounts.")
+
     print("--- Meta Ads Load Complete ---")
 
 
