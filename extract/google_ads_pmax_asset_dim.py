@@ -225,14 +225,26 @@ def main():
     child_accounts = get_child_accounts(manager_id, ads_client)
     print(f"Found {len(child_accounts)} client accounts under manager {manager_id}")
 
+    # Define the IDs you want to ignore ---
+    EXCLUDED_IDS = ['8024672713']
+
     print("\n--- Starting Ad PMAX Dimension Load (Full Refresh) ---")
 
     # This list will hold the DataFrames from all 12 accounts
     all_dfs = []
 
+    # Initialize the failure tracking list
+    failed_accounts = []
+
     for account in child_accounts:
         customer_id = str(account["id"])
         account_name = account["name"]
+
+        # --- The Skip Logic ---
+        if customer_id in EXCLUDED_IDS:
+            print(f"Skipping known Test Account: {account_name} ({customer_id})")
+            continue  # <--- Jumps to the next account immediately. No API call, no error.
+
         print(f"Extracting Ad PMAX Dimension for: {account_name} ({customer_id})")
 
         try:
@@ -247,29 +259,49 @@ def main():
             all_dfs.append(df_dim)
 
         except Exception as e:
-            print(f"Failed Ad PMAX Dimension for {account_name} ({customer_id}): {e}")
+            # Define error_msg BEFORE using it
+            error_msg = f"Failed Ad Performance Dimension for {account_name} ({customer_id}): {e}"
+            print(error_msg)
+
+            # Append error to list instead of ignoring it
+            failed_accounts.append(error_msg)
 
     # --- After looping, combine, deduplicate, and load ---
-    if not all_dfs:
-        print("No Ad PMAX dimension data found in any account. Exiting.")
-        return
 
-    print("\nCombining and deduplicating Ad PMAX data from all accounts...")
+    # CHECK: Do we have ANY data to process?
+    if all_dfs:
+        print("\nCombining and deduplicating Ad Performance data from all accounts...")
 
-    # 3. Combine all DataFrames into one
-    master_df = pd.concat(all_dfs, ignore_index = True)
+        # 3. Combine all DataFrames into one
+        master_df = pd.concat(all_dfs, ignore_index = True)
 
-    # 4. Deduplicate to get a clean list of unique Ad PMAX dim
-    master_df_deduped = master_df.drop_duplicates(subset = ["asset_group_id", "asset_id", "field_type"]).reset_index(drop = True)
+        # 4. Deduplicate to get a clean list of unique Ad PMAX dim
+        master_df_deduped = master_df.drop_duplicates(
+            subset = ["asset_group_id", "asset_id", "field_type"]).reset_index(drop = True)
 
-    print(f"Found {len(master_df_deduped)} unique Ad PMAX to load.")
+        print(f"Found {len(master_df_deduped)} unique Ad PMAX to load.")
 
-    try:
-        # 5. Call the dimension load function (uses WRITE_TRUNCATE)
-        load_pmax_dim_to_bigquery(master_df_deduped, bq_client)
-        print("--- Successfully loaded Ad PMAX Dimension ---")
-    except Exception as e:
-        print(f"Failed to load master Ad PMAX Dimension table: {e}")
+        try:
+            # 5. Call the dimension load function (uses WRITE_TRUNCATE)
+            load_pmax_dim_to_bigquery(master_df_deduped, bq_client)
+            print("--- Successfully loaded Ad PMAX Dimension ---")
+        except Exception as e:
+            print(f"Failed to load master Ad PMAX Dimension table: {e}")
+            raise e  # <--- This forces Airflow to mark the task as FAILED
+
+    else:
+        print("No Ad Performance dimension data found in successfully processed accounts.")
+        # We do NOT return here, because we still need to check if accounts failed.
+
+    # --- FINAL FAILURE CHECK ---
+    # If there were ANY failures during the loop, raise an exception now.
+    if failed_accounts:
+        print("\nCRITICAL: The following accounts failed extraction:")
+        for err in failed_accounts:
+            print(f" - {err}")
+
+        # This ensures Airflow marks the task as FAILED so you get the email/alert
+        raise Exception(f"Script completed with errors in {len(failed_accounts)} accounts.")
 
 
 if __name__ == "__main__":

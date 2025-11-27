@@ -197,40 +197,34 @@ def extract_creative_dim(account_id: str, account_name: str):
 
     data_rows = []
 
-    try:
-        # Fetch ADS using the corrected FIELDS list
-        creatives = account.get_ad_creatives(fields=FIELDS, params={'limit': 100})
+    # Fetch ADS using the corrected FIELDS list
+    creatives = account.get_ad_creatives(fields=FIELDS, params={'limit': 100})
 
-        # Iterate through the cursor (pagination is automatic in the SDK loop)
-        count = 0
-        for item in creatives:
-            count += 1
-            if count % 200 == 0:
-                print(f"  ...fetched {count} creative dimensions")
+    # Iterate through the cursor (pagination is automatic in the SDK loop)
+    count = 0
+    for item in creatives:
+        count += 1
+        if count % 200 == 0:
+            print(f"  ...fetched {count} creative dimensions")
 
-            parsed = parse_creative_details(item)
+        parsed = parse_creative_details(item)
 
-            data_rows.append({
-                'creative_id': item['id'],
-                'creative_name': item.get('name'), # May contain {{product.name}} for catalog ads
-                'account_id': account_id.replace("act_", ""),
-                'account_name': account_name,
-                'status': item.get('status'),
+        data_rows.append({
+            'creative_id': item['id'],
+            'creative_name': item.get('name'), # May contain {{product.name}} for catalog ads
+            'account_id': account_id.replace("act_", ""),
+            'account_name': account_name,
+            'status': item.get('status'),
 
-                # Parsed Fields
-                'headline': parsed['headline'],
-                'body': parsed['body'],
-                'destination_url': parsed['destination_url'],
-                'call_to_action_type': parsed['call_to_action_type'],
-                'image_url': parsed['image_url'],
+            # Parsed Fields
+            'headline': parsed['headline'],
+            'body': parsed['body'],
+            'destination_url': parsed['destination_url'],
+            'call_to_action_type': parsed['call_to_action_type'],
+            'image_url': parsed['image_url'],
 
-                '_ingested_at': datetime.now()
-            })
-
-    except FacebookRequestError as e:
-        print(f"Meta API Error for {account_name}: {e.api_error_message()}")
-        # Return whatever we managed to grab before the error
-        return pd.DataFrame(data_rows)
+            '_ingested_at': datetime.now()
+        })
 
     df = pd.DataFrame(data_rows)
     return df
@@ -300,6 +294,7 @@ def main():
         return
 
     all_creatives_dfs = []
+    failed_accounts = []
 
     # 6. Loop and Extract
     for acc in accounts:
@@ -314,7 +309,9 @@ def main():
             else:
                 print(f"     {acc_name}: No Creative dimensions found.")
         except Exception as e:
-            print(f"     Failed for {acc_name}: {e}")
+            error_msg = f"Failed for {acc_name} ({acc_id}): {e}"
+            print(error_msg)
+            failed_accounts.append(error_msg)
 
     # 7. Consolidate and Load
     if all_creatives_dfs:
@@ -332,6 +329,16 @@ def main():
             print(f"Failed to load to BigQuery: {e}")
     else:
         print("No Creative dimensions extracted from any account.")
+
+    # --- FINAL FAILURE CHECK ---
+    # If there were ANY failures during the loop, raise an exception now.
+    if failed_accounts:
+        print("\nCRITICAL: The following accounts failed extraction:")
+        for err in failed_accounts:
+            print(f" - {err}")
+
+        # This ensures Airflow marks the task as FAILED so you get the email/alert
+        raise Exception(f"Script completed with errors in {len(failed_accounts)} accounts.")
 
 
 if __name__ == "__main__":
