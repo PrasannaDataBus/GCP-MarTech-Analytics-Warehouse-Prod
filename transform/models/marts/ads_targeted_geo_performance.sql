@@ -62,7 +62,9 @@ google_ads AS (
             WHEN conversion_action_name LIKE '%Do NOT USE%' THEN 'OTHER'
             WHEN conversion_action_name = 'Registration' THEN 'INITIATE_CHECKOUT'
             WHEN LOWER(conversion_action_name) LIKE '%ticket%' THEN 'PURCHASE'
-            WHEN conversion_action_name IN ('Registrations', 'Submit lead form', 'Newsletter', 'Prospect') THEN 'LEAD'
+            WHEN conversion_action_name = 'Registrations' AND conversion_value > 0 THEN 'PURCHASE'
+            WHEN conversion_action_name = 'Registrations' THEN 'LEAD'
+            WHEN conversion_action_name IN ('Submit lead form', 'Newsletter', 'Prospect') THEN 'LEAD'
             WHEN LOWER(conversion_action_name) LIKE '%submit lead form%' THEN 'LEAD'
             WHEN LOWER(conversion_action_name) LIKE '%newsletter%' THEN 'LEAD'
             -- Add any other common strings here if needed, otherwise fallback to OTHER
@@ -78,7 +80,8 @@ google_ads AS (
         -- Route secondary lead actions to 'all_conversions' so they aren't lost in geo reporting.
         CASE
             WHEN conversion_action_name = 'Prospect' THEN all_conversions
-            WHEN conversion_action_name IN ('Registrations', 'Registration') THEN all_conversions
+            WHEN conversion_action_name = 'Registration' THEN all_conversions
+            WHEN conversion_action_name IN ('Registration') THEN all_conversions
             WHEN LOWER(conversion_action_name) LIKE '%submit lead form%' THEN all_conversions
             WHEN LOWER(conversion_action_name) LIKE '%newsletter%' THEN all_conversions
             ELSE conversions
@@ -86,9 +89,12 @@ google_ads AS (
 
         -- GOOGLE REVENUE SAFETY NET
         CASE
-            WHEN conversion_action_name IN ('Registration', 'Registrations', 'Prospect') THEN 0.0
+            WHEN conversion_action_name IN ('Registration', 'Prospect') THEN 0.0
             WHEN LOWER(conversion_action_name) LIKE '%submit lead form%' THEN 0.0
             WHEN LOWER(conversion_action_name) LIKE '%newsletter%' THEN 0.0
+
+            WHEN conversion_action_name = 'Registrations' AND conversion_value > 0 THEN conversion_value
+
             WHEN (
                 LOWER(conversion_action_name) LIKE '%ticket%' OR
                 conversion_action_name = 'NOTWORKING-Do NOT USE'
