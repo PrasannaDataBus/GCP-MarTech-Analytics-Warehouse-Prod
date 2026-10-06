@@ -64,7 +64,12 @@ WITH google_ads AS (
             WHEN conversion_action_name LIKE '%Ticket%' THEN 'PURCHASE'
 
             -- ACTUAL LEADS (High Quality)
+
+           -- DYNAMIC REGISTRATION LOGIC: Purchase if value exists OR category is PURCHASE
+
+            WHEN conversion_action_name = 'Registrations' AND (conversion_value > 0 OR conversion_category = 'PURCHASE') THEN 'PURCHASE'
             WHEN conversion_action_name = 'Registrations' THEN 'LEAD'
+
             WHEN conversion_action_name LIKE '%Submit lead form%' THEN 'LEAD'
             WHEN conversion_action_name LIKE '%Newsletter%' THEN 'LEAD'
             WHEN conversion_action_name = 'Prospect' THEN 'LEAD'
@@ -86,7 +91,7 @@ WITH google_ads AS (
         CASE
             WHEN conversion_action_name = 'Prospect' THEN all_conversions
             WHEN conversion_category = 'SUBMIT_LEAD_FORM' THEN all_conversions
-            WHEN conversion_action_name IN ('Registrations', 'Registration') THEN all_conversions
+            WHEN conversion_action_name = 'Registration' THEN all_conversions
             WHEN conversion_action_name LIKE '%Submit lead form%' THEN all_conversions
             WHEN conversion_action_name LIKE '%Newsletter%' THEN all_conversions
             ELSE conversions
@@ -95,7 +100,10 @@ WITH google_ads AS (
         -- SAFETY NET: Force 0.0 Value for non-Purchases (Preserved)
         CASE
             -- Rule 1: Kill the "Registration" value immediately
-            WHEN conversion_action_name IN ('Registration', 'Registrations', 'Prospect') THEN 0.0
+            WHEN conversion_action_name IN ('Registration', 'Prospect') THEN 0.0
+
+            -- Allow Registrations if it carries a monetary purchase value or is categorized as PURCHASE
+            WHEN conversion_action_name = 'Registrations' AND (conversion_value > 0 OR conversion_category = 'PURCHASE') THEN conversion_value
 
             -- Rule 2: Allow valid purchase categories
             WHEN (
