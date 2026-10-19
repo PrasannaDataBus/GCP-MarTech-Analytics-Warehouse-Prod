@@ -261,10 +261,12 @@ def extract_country_data(account_id: str, account_name: str, start_date: str, en
                 }
                 all_data_rows.append(row)
 
-        except Exception as e:
-            print(f"Error in Async Chunk {chunk_start}: {e}")
-            # If a chunk fails, we continue, but you might want to log this
-            continue
+
+        except FacebookRequestError as e:
+            error_msg = f"Meta API Error for {account_name} (Chunk {chunk_start}): {e.api_error_message()}"
+            print(error_msg)
+            # Break the loop and fail the Airflow task so you get alerted
+            raise Exception(error_msg)
 
     # --- INDENTATION FIX ---
     # This block is now outside the 'for' loop

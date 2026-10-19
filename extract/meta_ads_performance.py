@@ -251,10 +251,12 @@ def extract_meta_performance_data(account_id: str, account_name: str, start_date
             # Sleep briefly to be kind to the API rate limits between chunks
             time.sleep(1)
 
+
         except FacebookRequestError as e:
-            # We catch the error here to allow other chunks to proceed
-            print(f"Meta API Error for {account_name} (Chunk {chunk_start}): {e.api_error_message()}")
-            continue
+            error_msg = f"Meta API Error for {account_name} (Chunk {chunk_start}): {e.api_error_message()}"
+            print(error_msg)
+            # Break the loop and fail the Airflow task so you get alerted
+            raise Exception(error_msg)
 
     df = pd.DataFrame(all_data_rows)
     if not df.empty:

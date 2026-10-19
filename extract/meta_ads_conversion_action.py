@@ -256,9 +256,12 @@ def extract_conversion_action_data(account_id: str, account_name: str, start_dat
                         all_data_rows.append(row)
                 # --- ROW EXPLOSION LOGIC END ---
 
+
         except Exception as e:
-            print(f"Error in Async Chunk {chunk_start}: {e}")
-            continue
+            error_msg = f"Error in Async Chunk {chunk_start}: {e}"
+            print(error_msg)
+            # Break the loop and fail the Airflow task so you get alerted
+            raise Exception(error_msg)
 
     df = pd.DataFrame(all_data_rows)
     if not df.empty:
