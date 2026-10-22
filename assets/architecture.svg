@@ -158,12 +158,11 @@
   <text x="1600" y="218" class="bt">Power BI</text>
   <text x="1600" y="244" class="sm">Ads Command Center</text>
   <line x1="1600" y1="262" x2="1760" y2="262" stroke="#EAECF0" stroke-width="1.5"/>
-  <text x="1600" y="292" class="pg">ROAS Overview</text>
-  <text x="1600" y="318" class="pg">Performance Overview</text>
-  <text x="1600" y="344" class="pg">Geo ROAS</text>
-  <text x="1600" y="370" class="pg">Geo Performance</text>
-  <text x="1600" y="396" class="pg">Age &amp; Gender</text>
-  <text x="1600" y="422" class="pg">Search Terms</text>
+  <text x="1600" y="292" class="pg">Self-serve reports</text>
+  <text x="1600" y="318" class="pg">for marketing teams</text>
+  <text x="1600" y="352" class="pg">Built on the semantic</text>
+  <text x="1600" y="378" class="pg">model, not raw tables</text>
+  <text x="1600" y="412" class="pg">YoY / YTD on full history</text>
   <line x1="1600" y1="442" x2="1760" y2="442" stroke="#EAECF0" stroke-width="1.5"/>
   <text x="1600" y="468" class="sm">Slicers: platform, event,</text>
   <text x="1600" y="490" class="sm">edition, campaign,</text>

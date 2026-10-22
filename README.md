@@ -359,6 +359,7 @@ Segmentation analysis to identify high-value personas.
 ### Dashboard Preview:
 
 ![Ads Analytics - Global Dashboard](assets/Ads%20Analytics%20-%20Global.jpg)
+
 *(Note: Sensitive financial figures, legends and other numbers have been masked for data privacy).*
 
 🧠 Author & Maintainer
