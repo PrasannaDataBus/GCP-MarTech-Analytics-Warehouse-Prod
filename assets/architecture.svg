@@ -82,8 +82,8 @@
   <line x1="402" y1="270" x2="648" y2="270" stroke="#EAECF0" stroke-width="1.5"/>
   <text x="402" y="306" class="bs">• 3-year historical backfill</text>
   <text x="402" y="342" class="bs">• Daily incremental loads</text>
-  <text x="402" y="378" class="bs">• 14-day rolling lookback</text>
-  <text x="420" y="402" class="sm">captures attribution lag</text>
+  <text x="402" y="378" class="bs">• Rolling lookback: 14 days,</text>
+  <text x="420" y="402" class="sm">30 days for sales &amp; leads</text>
   <text x="402" y="438" class="bs">• Idempotent writes</text>
   <text x="420" y="462" class="sm">DELETE by date/account →</text>
   <text x="420" y="484" class="sm">INSERT; safe to re-run</text>
