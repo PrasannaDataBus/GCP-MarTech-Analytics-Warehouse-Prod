@@ -1,0 +1,246 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1820" height="1240" viewBox="0 0 1820 1240" font-family="Inter, 'DejaVu Sans', sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#475467"/>
+    </marker>
+    <marker id="arrw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#98A2B3"/>
+    </marker>
+    <style>
+      .h1{font-size:36px;font-weight:700;fill:#101828}
+      .sub{font-size:19px;fill:#475467}
+      .colt{font-size:15px;font-weight:700;letter-spacing:1.6px;fill:#667085}
+      .bt{font-size:21px;font-weight:700;fill:#101828}
+      .bt2{font-size:19px;font-weight:700;fill:#101828}
+      .bs{font-size:16px;fill:#344054}
+      .sm{font-size:15px;fill:#475467}
+      .pg{font-size:15px;fill:#344054}
+      .code{font-family:'DejaVu Sans Mono', monospace;font-size:13.5px;fill:#1D2939}
+      .wip{font-size:16px;fill:#98A2B3;font-style:italic}
+      .wipt{font-size:19px;font-weight:700;fill:#667085}
+      .badge{font-size:12px;font-weight:700;letter-spacing:0.8px;fill:#B54708}
+      .chip{font-size:16px;font-weight:600;fill:#101828}
+      .chips{font-size:14px;fill:#475467}
+      .card{fill:#FFFFFF;stroke:#D0D5DD;stroke-width:1.5}
+      .wipcard{fill:#FCFCFD;stroke:#98A2B3;stroke-width:1.5;stroke-dasharray:7 5}
+      .codebg{fill:#F2F4F7}
+      .line{stroke:#475467;stroke-width:2.2;fill:none}
+      .wline{stroke:#98A2B3;stroke-width:2;fill:none;stroke-dasharray:6 5}
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1820" height="1240" rx="24" fill="#F8FAFC"/>
+
+  <!-- Title -->
+  <text x="40" y="70" class="h1">GCP MarTech Analytics Warehouse</text>
+  <text x="40" y="104" class="sub">Medallion ELT platform · Python · Apache Airflow (Docker) · BigQuery · dbt Core · Power BI</text>
+
+  <!-- Legend -->
+  <rect x="1440" y="48" width="340" height="64" rx="12" fill="#FFFFFF" stroke="#EAECF0" stroke-width="1.5"/>
+  <line x1="1462" y1="80" x2="1502" y2="80" stroke="#475467" stroke-width="2.5"/>
+  <text x="1512" y="86" class="sm">Live</text>
+  <line x1="1580" y1="80" x2="1620" y2="80" stroke="#98A2B3" stroke-width="2.5" stroke-dasharray="6 5"/>
+  <text x="1630" y="86" class="sm">In progress</text>
+
+  <!-- Column labels -->
+  <text x="40" y="160" class="colt">SOURCES</text>
+  <text x="380" y="160" class="colt">EXTRACT &amp; LOAD</text>
+  <text x="720" y="160" class="colt">GOOGLE BIGQUERY</text>
+  <text x="1580" y="160" class="colt">CONSUME</text>
+
+  <!-- Sources: live -->
+  <rect x="40" y="180" width="290" height="90" rx="14" class="card"/>
+  <text x="62" y="214" class="bt2">Google Ads API</text>
+  <text x="62" y="240" class="sm">gRPC SDK · 23+ modules</text>
+
+  <rect x="40" y="284" width="290" height="90" rx="14" class="card"/>
+  <text x="62" y="318" class="bt2">Meta Marketing API</text>
+  <text x="62" y="344" class="sm">Graph API SDK · 13+ modules</text>
+
+  <rect x="40" y="388" width="290" height="90" rx="14" class="card"/>
+  <text x="62" y="422" class="bt2">CRM (MySQL)</text>
+  <text x="62" y="448" class="sm">Conversions &amp; sales · 2+ modules</text>
+
+  <!-- Sources: in progress -->
+  <rect x="40" y="492" width="290" height="68" rx="14" class="wipcard"/>
+  <text x="62" y="533" class="wipt">LinkedIn Ads API</text>
+  <rect x="234" y="514" width="80" height="24" rx="12" fill="#FEF0C7"/>
+  <text x="243" y="531" class="badge">IN PROG</text>
+
+  <rect x="40" y="574" width="290" height="68" rx="14" class="wipcard"/>
+  <text x="62" y="615" class="wipt">TikTok Ads API</text>
+  <rect x="234" y="596" width="80" height="24" rx="12" fill="#FEF0C7"/>
+  <text x="243" y="613" class="badge">IN PROG</text>
+
+  <rect x="40" y="656" width="290" height="54" rx="14" fill="#FFFFFF" stroke="#D0D5DD" stroke-width="1.5" stroke-dasharray="3 4"/>
+  <text x="62" y="689" class="bs">dbt seeds: calendar, countries</text>
+
+  <!-- Extract -->
+  <rect x="380" y="180" width="290" height="530" rx="14" class="card"/>
+  <text x="402" y="220" class="bt">Python extractors</text>
+  <text x="402" y="248" class="bs">1 module → 1 raw table</text>
+  <line x1="402" y1="270" x2="648" y2="270" stroke="#EAECF0" stroke-width="1.5"/>
+  <text x="402" y="306" class="bs">• 3-year historical backfill</text>
+  <text x="402" y="342" class="bs">• Daily incremental loads</text>
+  <text x="402" y="378" class="bs">• 14-day rolling lookback</text>
+  <text x="420" y="402" class="sm">captures attribution lag</text>
+  <text x="402" y="438" class="bs">• Idempotent writes</text>
+  <text x="420" y="462" class="sm">DELETE by date/account →</text>
+  <text x="420" y="484" class="sm">INSERT; safe to re-run</text>
+  <text x="402" y="520" class="bs">• Partition by DATE</text>
+  <text x="402" y="556" class="bs">• Cluster by filter columns</text>
+  <text x="420" y="580" class="sm">e.g. campaign, ad group</text>
+  <text x="402" y="616" class="bs">• Repair job for load</text>
+  <text x="420" y="640" class="sm">discrepancies</text>
+
+  <!-- BigQuery container -->
+  <rect x="720" y="180" width="830" height="530" rx="18" fill="#EEF4FF" stroke="#B2CCFF" stroke-width="1.5"/>
+
+  <!-- Bronze -->
+  <rect x="745" y="206" width="240" height="478" rx="14" class="card"/>
+  <rect x="745" y="206" width="240" height="10" rx="5" fill="#B4693A"/>
+  <text x="767" y="254" class="bt">Bronze</text>
+  <text x="767" y="280" class="sm">Raw ingestion</text>
+  <rect x="763" y="296" width="204" height="58" rx="8" class="codebg"/>
+  <text x="775" y="320" class="code">load: Python → BQ</text>
+  <text x="775" y="342" class="code">mode: delete+insert</text>
+  <line x1="767" y1="372" x2="963" y2="372" stroke="#EAECF0" stroke-width="1.5"/>
+  <text x="767" y="404" class="bs">One raw table</text>
+  <text x="767" y="426" class="bs">per module</text>
+  <text x="767" y="460" class="bs">Source-faithful</text>
+  <text x="767" y="482" class="bs">schema</text>
+  <text x="767" y="516" class="bs">Partitioned by DATE</text>
+  <text x="767" y="550" class="bs">Clustered by</text>
+  <text x="767" y="572" class="bs">filter columns</text>
+
+  <!-- Silver -->
+  <rect x="1015" y="206" width="240" height="478" rx="14" class="card"/>
+  <rect x="1015" y="206" width="240" height="10" rx="5" fill="#8A94A6"/>
+  <text x="1037" y="254" class="bt">Silver</text>
+  <text x="1037" y="280" class="sm">Staging models</text>
+  <rect x="1033" y="296" width="204" height="58" rx="8" class="codebg"/>
+  <text x="1045" y="320" class="code">materialized='view'</text>
+  <text x="1045" y="342" class="code">prefix: stg_*</text>
+  <line x1="1037" y1="372" x2="1233" y2="372" stroke="#EAECF0" stroke-width="1.5"/>
+  <text x="1037" y="404" class="bs">SAFE_CAST typing,</text>
+  <text x="1037" y="426" class="bs">snake_case schema</text>
+  <text x="1037" y="460" class="bs">Legacy naming</text>
+  <text x="1037" y="482" class="bs">normalised (CASE)</text>
+  <text x="1037" y="516" class="bs">Product-calendar join</text>
+  <text x="1037" y="550" class="bs">Pricing tiers,</text>
+  <text x="1037" y="572" class="bs">weeks-out curves</text>
+  <text x="1037" y="606" class="bs">Local currency kept</text>
+  <text x="1037" y="660" class="sm">Always fresh · 0 storage cost</text>
+
+  <!-- Gold -->
+  <rect x="1285" y="206" width="240" height="478" rx="14" class="card"/>
+  <rect x="1285" y="206" width="240" height="10" rx="5" fill="#C9A227"/>
+  <text x="1307" y="254" class="bt">Gold</text>
+  <text x="1307" y="280" class="sm">Business marts</text>
+  <rect x="1303" y="296" width="204" height="58" rx="8" class="codebg"/>
+  <text x="1315" y="320" class="code">materialized='table'</text>
+  <text x="1315" y="342" class="code">partition + cluster</text>
+  <line x1="1307" y1="372" x2="1503" y2="372" stroke="#EAECF0" stroke-width="1.5"/>
+  <text x="1307" y="402" class="bs">Google + Meta unified</text>
+  <text x="1307" y="434" class="bs">• Campaign performance</text>
+  <text x="1307" y="462" class="bs">• ROAS / ROI</text>
+  <text x="1307" y="490" class="bs">• Geo ROAS</text>
+  <text x="1307" y="518" class="bs">• Geo &amp; targeted geo</text>
+  <text x="1307" y="546" class="bs">• Demographics</text>
+  <text x="1307" y="574" class="bs">• Conversion actions</text>
+  <text x="1307" y="602" class="bs">• Search terms</text>
+  <text x="1307" y="628" class="wip">• Demographic ROAS</text>
+  <rect x="1325" y="640" width="80" height="22" rx="11" fill="#FEF0C7"/>
+  <text x="1334" y="656" class="badge">IN PROG</text>
+
+  <!-- Consume -->
+  <rect x="1580" y="180" width="200" height="404" rx="14" class="card"/>
+  <text x="1600" y="218" class="bt">Power BI</text>
+  <text x="1600" y="244" class="sm">Ads Command Center</text>
+  <line x1="1600" y1="262" x2="1760" y2="262" stroke="#EAECF0" stroke-width="1.5"/>
+  <text x="1600" y="292" class="pg">ROAS Overview</text>
+  <text x="1600" y="318" class="pg">Performance Overview</text>
+  <text x="1600" y="344" class="pg">Geo ROAS</text>
+  <text x="1600" y="370" class="pg">Geo Performance</text>
+  <text x="1600" y="396" class="pg">Age &amp; Gender</text>
+  <text x="1600" y="422" class="pg">Search Terms</text>
+  <line x1="1600" y1="442" x2="1760" y2="442" stroke="#EAECF0" stroke-width="1.5"/>
+  <text x="1600" y="468" class="sm">Slicers: platform, event,</text>
+  <text x="1600" y="490" class="sm">edition, campaign,</text>
+  <text x="1600" y="512" class="sm">channel, country,</text>
+  <text x="1600" y="534" class="sm">status, week, date</text>
+  <text x="1600" y="556" class="sm">and more</text>
+
+  <rect x="1580" y="600" width="200" height="110" rx="14" class="card"/>
+  <text x="1600" y="638" class="bt2">Semantic model</text>
+  <text x="1600" y="666" class="sm">Microsoft Fabric</text>
+  <text x="1600" y="688" class="sm">OneLake</text>
+
+  <!-- Flow arrows -->
+  <path d="M330 225 H373" class="line" marker-end="url(#arr)"/>
+  <path d="M330 329 H373" class="line" marker-end="url(#arr)"/>
+  <path d="M330 433 H373" class="line" marker-end="url(#arr)"/>
+  <path d="M330 526 H373" class="wline" marker-end="url(#arrw)"/>
+  <path d="M330 608 H373" class="wline" marker-end="url(#arrw)"/>
+  <path d="M185 710 V742 H1100 Q1120 742 1120 722 V692" class="line" stroke-dasharray="6 5" marker-end="url(#arr)"/>
+  <path d="M670 445 H738" class="line" marker-end="url(#arr)"/>
+  <path d="M985 445 H1008" class="line" marker-end="url(#arr)"/>
+  <path d="M1255 445 H1278" class="line" marker-end="url(#arr)"/>
+  <path d="M1525 380 H1573" class="line" marker-end="url(#arr)"/>
+  <path d="M1525 655 H1573" class="line" marker-end="url(#arr)"/>
+
+  <!-- Orchestration bar -->
+  <rect x="380" y="776" width="1400" height="96" rx="14" fill="#101828"/>
+  <text x="404" y="814" font-size="21" font-weight="700" fill="#FFFFFF">Apache Airflow on Docker  ·  45+ DAGs per environment (Dev + Prod)</text>
+  <text x="404" y="848" font-size="16" fill="#D0D5DD">Extract DAGs load Bronze  →  one atomic dbt DAG per mart:  dbt debug → Silver → Gold → dbt test  (a Silver failure stops Gold, so dashboards never show stale data)</text>
+  <path d="M525 772 V716" class="line" stroke="#101828" marker-end="url(#arr)"/>
+  <path d="M1180 772 V716" class="line" stroke="#101828" marker-end="url(#arr)"/>
+
+  <!-- Deployment flow -->
+  <text x="40" y="930" class="colt">DEV → PROD PROMOTION</text>
+  <rect x="40" y="948" width="480" height="128" rx="14" class="card"/>
+  <rect x="40" y="948" width="8" height="128" rx="4" fill="#2E90FA"/>
+  <text x="66" y="984" class="bt2">Dev · build &amp; validate</text>
+  <text x="66" y="1012" class="code">GCP-MarTech-…-Dev + Airflow-Docker-Dev</text>
+  <text x="66" y="1040" class="sm">Manual DAG triggers · Slim CI (14 days)</text>
+  <text x="66" y="1062" class="sm">Development workstation</text>
+
+  <path d="M520 1012 H588" class="line" marker-end="url(#arr)"/>
+  <text x="526" y="1000" class="chips">tested</text>
+
+  <rect x="595" y="948" width="600" height="128" rx="14" class="card"/>
+  <rect x="595" y="948" width="8" height="128" rx="4" fill="#7A5AF8"/>
+  <text x="621" y="984" class="bt2">Git-based release</text>
+  <rect x="617" y="996" width="560" height="54" rx="8" class="codebg"/>
+  <text x="629" y="1018" class="code">git fetch dev → git merge dev/master</text>
+  <text x="629" y="1040" class="code">→ git push prod master</text>
+  <text x="621" y="1066" class="sm">Validated Dev code promoted into the Prod repositories</text>
+
+  <path d="M1195 1012 H1263" class="line" marker-end="url(#arr)"/>
+  <text x="1203" y="1000" class="chips">git pull</text>
+
+  <rect x="1270" y="948" width="510" height="128" rx="14" class="card"/>
+  <rect x="1270" y="948" width="8" height="128" rx="4" fill="#12B76A"/>
+  <text x="1296" y="984" class="bt2">Prod · always-on runtime host</text>
+  <text x="1296" y="1012" class="code">GCP-MarTech-…-Prod + Airflow-Docker-Prod</text>
+  <text x="1296" y="1040" class="sm">Daily schedule · full history · email alerts</text>
+  <text x="1296" y="1062" class="sm">Dedicated machine keeps pipelines up</text>
+
+  <!-- Cross-cutting chips -->
+  <text x="40" y="1118" class="colt">ENGINEERING PRACTICES</text>
+  <rect x="40" y="1136" width="420" height="80" rx="12" class="card"/>
+  <text x="60" y="1170" class="chip">Documentation</text>
+  <text x="60" y="1196" class="chips">Data dictionary · dbt &amp; GCP standards · release guide</text>
+
+  <rect x="480" y="1136" width="420" height="80" rx="12" class="card"/>
+  <text x="500" y="1170" class="chip">Slim CI via dbt macro</text>
+  <text x="500" y="1196" class="chips">Dev limited to 14 days · &gt;90% compute saved</text>
+
+  <rect x="920" y="1136" width="420" height="80" rx="12" class="card"/>
+  <text x="940" y="1170" class="chip">Observability</text>
+  <text x="940" y="1196" class="chips">Email alerts on failure · retries · repair job</text>
+
+  <rect x="1360" y="1136" width="420" height="80" rx="12" class="card"/>
+  <text x="1380" y="1170" class="chip">Security</text>
+  <text x="1380" y="1196" class="chips">Secrets in .env (git-ignored) · least-privilege SAs</text>
+</svg>

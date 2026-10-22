@@ -2,6 +2,8 @@
 
 **Data Engineering & Marketing Analytics Automation Pipeline**
 
+![GCP MarTech Analytics Warehouse architecture](assets/architecture.png)
+
 This repository contains the codebase for the **Google Cloud Platform (GCP) Marketing Technology Analytics Warehouse**. It is designed to automate the extraction, transformation, and loading **(ETL/ELT)** of multi-channel marketing data into **BigQuery** for advanced analytics, reporting, and budget optimization.
 
 ---
